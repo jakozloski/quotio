@@ -324,6 +324,7 @@ struct LocalizedStrings {
         "about.quotaTracking": [.english: "Quota Tracking", .vietnamese: "Theo dõi quota"],
         "about.agentConfig": [.english: "Agent Config", .vietnamese: "Cấu hình Agent"],
         "about.buyMeCoffee": [.english: "Buy Me a Coffee", .vietnamese: "Mua cho tôi ly cà phê"],
+        "about.buyMePizza": [.english: "Buy Me a Pizza", .vietnamese: "Mua cho tôi miếng pizza"],
         "about.madeWith": [.english: "Made with ❤️ in Vietnam", .vietnamese: "Được tạo với ❤️ tại Việt Nam"],
     ]
     

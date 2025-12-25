@@ -365,6 +365,8 @@ struct AboutTab: View {
 // MARK: - About Screen (New Full-Page Version)
 
 struct AboutScreen: View {
+    @State private var showDonationSheet = false
+    
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
@@ -455,10 +457,12 @@ struct AboutScreen: View {
                     }
                     .buttonStyle(.bordered)
                     
-                    Link(destination: URL(string: "https://buymeacoffee.com/trongnguyen")!) {
+                    Button {
+                        showDonationSheet = true
+                    } label: {
                         HStack {
-                            Image(systemName: "cup.and.saucer.fill")
-                            Text("about.buyMeCoffee".localized())
+                            Image(systemName: "fork.knife")
+                            Text("about.buyMePizza".localized())
                         }
                         .frame(width: 200)
                     }
@@ -477,6 +481,9 @@ struct AboutScreen: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("nav.about".localized())
+        .sheet(isPresented: $showDonationSheet) {
+            DonationSheet()
+        }
     }
 }
 
@@ -502,5 +509,91 @@ struct FeatureBadge: View {
                 .foregroundStyle(.primary)
         }
         .frame(width: 100)
+    }
+}
+
+// MARK: - Donation Sheet
+
+enum PaymentMethod: String, CaseIterable {
+    case momo = "Momo"
+    case bank = "Bank"
+}
+
+struct DonationSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedMethod: PaymentMethod = .momo
+    
+    private let momoQRString = "00020101021138620010A00000072701320006970454011899MM23331M407713670208QRIBFTTA53037045802VN62190515MOMOW2W407713676304BDF8"
+    private let bankQRString = "00020101021138630010A000000727013300069704070119MS00T064330999445710208QRIBFTTA5204601153037045802VN5903TCB6005Hanoi8315T0643309994457163047444"
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Header
+            HStack {
+                Text("about.buyMePizza".localized())
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // Segment Picker
+            Picker("Payment Method", selection: $selectedMethod) {
+                ForEach(PaymentMethod.allCases, id: \.self) { method in
+                    Text(method.rawValue).tag(method)
+                }
+            }
+            .pickerStyle(.segmented)
+            
+            // QR Code
+            if let qrImage = generateQRCode(from: selectedMethod == .momo ? momoQRString : bankQRString) {
+                Image(nsImage: qrImage)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 200, height: 200)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.1), radius: 5)
+            }
+            
+            // Info text
+            Text(selectedMethod == .momo ? "Scan with Momo app" : "Scan with banking app (TCB)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            
+            Spacer()
+        }
+        .padding(24)
+        .frame(width: 320, height: 400)
+    }
+    
+    private func generateQRCode(from string: String) -> NSImage? {
+        guard let data = string.data(using: .utf8),
+              let filter = CIFilter(name: "CIQRCodeGenerator") else {
+            return nil
+        }
+        
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("H", forKey: "inputCorrectionLevel")
+        
+        guard let ciImage = filter.outputImage else { return nil }
+        
+        // Scale up the QR code
+        let transform = CGAffineTransform(scaleX: 10, y: 10)
+        let scaledImage = ciImage.transformed(by: transform)
+        
+        let rep = NSCIImageRep(ciImage: scaledImage)
+        let nsImage = NSImage(size: rep.size)
+        nsImage.addRepresentation(rep)
+        
+        return nsImage
     }
 }
