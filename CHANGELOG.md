@@ -5,6 +5,13 @@ All notable changes to Quotio will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2025-12-28
+
+### Fixed
+
+- **Menu Bar Full-Screen Support**: Replace NSPopover with custom NSPanel to enable visibility in full-screen applications (#13)
+- **Menu Bar Auto-Focus**: Prevent auto-focus on buttons when panel opens (#13)
+
 ## [0.2.2] - 2025-12-27
 
 ### Fixed
