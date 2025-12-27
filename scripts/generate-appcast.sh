@@ -39,9 +39,28 @@ if [ ! -d "$RELEASE_DIR" ] || [ -z "$(ls -A "$RELEASE_DIR" 2>/dev/null)" ]; then
     exit 1
 fi
 
+# Temporarily move DMG files to avoid Sparkle duplicate version error
+# Sparkle only supports one archive per version
+DMG_FILES=$(find "$RELEASE_DIR" -name "*.dmg" -type f 2>/dev/null)
+TEMP_DMG_DIR="${BUILD_DIR}/dmg_temp"
+if [ -n "$DMG_FILES" ]; then
+    mkdir -p "$TEMP_DMG_DIR"
+    for dmg in $DMG_FILES; do
+        mv "$dmg" "$TEMP_DMG_DIR/"
+    done
+    log_info "Temporarily moved DMG files for appcast generation"
+fi
+
 # Generate appcast (uses Keychain for signing)
 log_step "Generating appcast from ${RELEASE_DIR}..."
 "$GENERATE_APPCAST" "${RELEASE_DIR}"
+
+# Restore DMG files
+if [ -d "$TEMP_DMG_DIR" ] && [ -n "$(ls -A "$TEMP_DMG_DIR" 2>/dev/null)" ]; then
+    mv "$TEMP_DMG_DIR"/*.dmg "$RELEASE_DIR/"
+    rmdir "$TEMP_DMG_DIR"
+    log_info "Restored DMG files"
+fi
 
 if [ -f "${APPCAST_PATH}" ]; then
     log_info "Appcast generated: ${APPCAST_PATH}"
