@@ -365,7 +365,7 @@ final class ProxyBridge {
     
     // MARK: - Metadata Extraction
     
-    private nonisolated func extractMetadata(method: String, path: String, body: String) -> (provider: String?, model: String?) {
+    private nonisolated func extractMetadata(method: String, path: String, body: String) -> (provider: String?, model: String?, method: String, path: String) {
         // Detect provider from path
         var provider: String?
         if path.contains("/anthropic/") || path.contains("/claude") {
@@ -397,7 +397,7 @@ final class ProxyBridge {
             }
         }
         
-        return (provider, model)
+        return (provider, model, method, path)
     }
     
     // MARK: - Request Forwarding
@@ -412,7 +412,7 @@ final class ProxyBridge {
         connectionId: Int,
         startTime: Date,
         requestSize: Int,
-        metadata: (provider: String?, model: String?),
+        metadata: (provider: String?, model: String?, method: String, path: String),
         targetPort: UInt16,
         targetHost: String
     ) {
@@ -496,7 +496,7 @@ final class ProxyBridge {
         connectionId: Int,
         startTime: Date,
         requestSize: Int,
-        metadata: (provider: String?, model: String?),
+        metadata: (provider: String?, model: String?, method: String, path: String),
         responseData: Data
     ) {
         targetConnection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, error in
@@ -575,7 +575,7 @@ final class ProxyBridge {
         requestSize: Int,
         responseSize: Int,
         responseData: Data,
-        metadata: (provider: String?, model: String?)
+        metadata: (provider: String?, model: String?, method: String, path: String)
     ) {
         let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
         
@@ -600,8 +600,8 @@ final class ProxyBridge {
         Task { @MainActor [weak self] in
             let requestMetadata = RequestMetadata(
                 timestamp: startTime,
-                method: "", // Not tracked in simplified version
-                path: "",   // Not tracked in simplified version
+                method: capturedMetadata.method,
+                path: capturedMetadata.path,
                 provider: capturedMetadata.provider,
                 model: capturedMetadata.model,
                 statusCode: capturedStatusCode,

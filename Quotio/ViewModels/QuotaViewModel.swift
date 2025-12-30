@@ -334,10 +334,8 @@ final class QuotaViewModel {
             setupAPIClient()
             startAutoRefresh()
             
-            // Start RequestTracker log watching if bridge mode is enabled
-            if proxyManager.useBridgeMode {
-                requestTracker.startWatching(logDirectory: proxyManager.authDir)
-            }
+            // Start RequestTracker
+            requestTracker.start()
             
             await refreshData()
         } catch {
@@ -349,8 +347,8 @@ final class QuotaViewModel {
         refreshTask?.cancel()
         refreshTask = nil
         
-        // Stop RequestTracker log watching
-        requestTracker.stopWatching()
+        // Stop RequestTracker
+        requestTracker.stop()
         
         proxyManager.stop()
         
