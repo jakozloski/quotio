@@ -7,25 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **Privacy**: Reduce file system access to address macOS privacy warnings (#29)
-  - Remove Cursor and Trae from auto-refresh - require explicit user scan
-  - Add "Scan for IDEs" button with consent dialog on Providers screen
-  - No persistent storage of scan consent - cleared on app restart
-
-- **Agent Detection**: Restore CLI binary paths for proper detection
-  - Issue: GUI apps don't inherit user's shell PATH, causing `which` to fail
-  - Re-add common paths: ~/.local/bin, ~/.bun/bin, ~/.cargo/bin, ~/.deno/bin
-  - Add tool-specific: ~/.opencode/bin
-  - Add version manager support: nvm, fnm, Volta, asdf, mise
-  - Note: Binary detection only checks file existence (metadata), not content
+## [0.3.1] - 2025-12-30
 
 ### Added
 
-- **IDE Scan Dialog**: New consent-based IDE scanning with privacy notice
+- **Claude Code 2.0+ Support**: Read OAuth credentials from macOS Keychain instead of credentials.json (#27)
+- **Managed Proxy Upgrade**: Version manager for proxy binary updates (#30)
+  - Versioned binary storage with symlink-based switching
+  - SHA256 checksum verification for secure downloads
+  - Compatibility check (dry-run) before activation
+  - Rollback capability for failed upgrades
+  - Auto-check for proxy updates on app launch
+  - Upgrade available notifications
+- **IDE Scan Dialog**: New consent-based IDE scanning with privacy notice (#33)
 - **IDE Quota Persistence**: Cursor and Trae quota data now persists across app restarts
 - **Localization**: Vietnamese translations for IDE scan UI
+- **Chinese README**: Documentation in Simplified Chinese (#35)
+- **MIT License**: Project now licensed under MIT (#24)
+
+### Changed
+
+- **About Screen Redesign**: Move update settings into About screen with modern card-based UI
+
+### Fixed
+
+- **Privacy**: Reduce file system access to address macOS privacy warnings (#33)
+  - Remove Cursor and Trae from auto-refresh - require explicit user scan
+  - Add "Scan for IDEs" button with consent dialog on Providers screen
+  - No persistent storage of scan consent - cleared on app restart
+- **Agent Detection**: Restore CLI binary paths for proper detection
+  - GUI apps don't inherit user's shell PATH, causing `which` to fail
+  - Re-add common paths: ~/.local/bin, ~/.bun/bin, ~/.cargo/bin, ~/.deno/bin
+  - Add tool-specific: ~/.opencode/bin
+  - Add version manager support: nvm, fnm, Volta, asdf, mise
+- **ForEach ID Collision**: Fix duplicate ID issue when Cursor and Trae share same email (#33)
 
 ## [0.3.0] - 2025-12-29
 
