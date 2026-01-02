@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Configurable Refresh Cadence**: Add setting to configure auto-refresh interval with 10-minute default (#76)
 - **GitHub Actions CI/CD**: Automated release workflow with tag-based and manual triggers (#74)
   - Add `update-changelog.sh` script for automated changelog updates
   - Add `generate-appcast-ci.sh` for CI-compatible Sparkle appcast generation
