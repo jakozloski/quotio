@@ -74,6 +74,12 @@ Quotio 可以自动配置以下工具使用你的集中式代理：
 - macOS 15.0（Sequoia）或更高版本
 - OAuth 认证需要互联网连接
 
+### Homebrew（推荐）
+```bash
+brew tap nguyenphutrong/tap
+brew install --cask quotio
+```
+
 ### 下载
 从 [Releases](https://github.com/nguyenphutrong/quotio/releases) 页面下载最新的 `.dmg`。
 
@@ -189,6 +195,18 @@ Quotio 可以自动配置以下工具使用你的集中式代理：
     src="https://api.star-history.com/svg?repos=nguyenphutrong/quotio&type=Date"
   />
 </picture>
+
+## 📊 仓库活动
+
+![Repo Activity](https://repobeats.axiom.co/api/embed/884e7349c8939bfd4bdba4bc582b6fdc0ecc21ee.svg "Repobeats analytics image")
+
+## 💖 贡献者
+
+没有你们，我们无法做到这一切。感谢！🙏
+
+<a href="https://github.com/nguyenphutrong/quotio/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nguyenphutrong/quotio" />
+</a>
 
 ## 📄 许可证
 

@@ -74,6 +74,12 @@ Quotio peut configurer automatiquement ces outils pour utiliser votre proxy cent
 - macOS 15.0 (Sequoia) ou ultérieur
 - Connexion Internet pour l'authentification OAuth
 
+### Homebrew (Recommandé)
+```bash
+brew tap nguyenphutrong/tap
+brew install --cask quotio
+```
+
 ### Téléchargement
 Téléchargez le dernier `.dmg` depuis la page [Releases](https://github.com/nguyenphutrong/quotio/releases).
 
@@ -189,6 +195,18 @@ Allez dans l'onglet **Agents** → Sélectionnez un agent installé → Cliquez 
     src="https://api.star-history.com/svg?repos=nguyenphutrong/quotio&type=Date"
   />
 </picture>
+
+## 📊 Activité du Repo
+
+![Repo Activity](https://repobeats.axiom.co/api/embed/884e7349c8939bfd4bdba4bc582b6fdc0ecc21ee.svg "Repobeats analytics image")
+
+## 💖 Contributeurs
+
+Nous n'aurions pas pu y arriver sans vous. Merci ! 🙏
+
+<a href="https://github.com/nguyenphutrong/quotio/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nguyenphutrong/quotio" />
+</a>
 
 ## 📄 Licence
 

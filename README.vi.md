@@ -74,6 +74,12 @@ Quotio có thể tự động cấu hình các công cụ sau:
 - macOS 15.0 (Sequoia) trở lên
 - Kết nối internet để xác thực OAuth
 
+### Homebrew (Khuyến nghị)
+```bash
+brew tap nguyenphutrong/tap
+brew install --cask quotio
+```
+
 ### Tải xuống
 Tải file `.dmg` mới nhất từ trang [Releases](https://github.com/nguyenphutrong/quotio/releases).
 
@@ -189,6 +195,18 @@ Vào tab **Agents** → Chọn agent đã cài → Nhấn **Configure** → Ch�
     src="https://api.star-history.com/svg?repos=nguyenphutrong/quotio&type=Date"
   />
 </picture>
+
+## 📊 Hoạt động Repo
+
+![Repo Activity](https://repobeats.axiom.co/api/embed/884e7349c8939bfd4bdba4bc582b6fdc0ecc21ee.svg "Repobeats analytics image")
+
+## 💖 Người đóng góp
+
+Chúng tôi không thể làm được điều này nếu thiếu các bạn. Cảm ơn! 🙏
+
+<a href="https://github.com/nguyenphutrong/quotio/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nguyenphutrong/quotio" />
+</a>
 
 ## 📄 Giấy phép
 
