@@ -12,7 +12,7 @@ actor WarmupService {
         "https://cloudcode-pa.googleapis.com"
     ]
     
-    func warmup(managementClient: ManagementAPIClient, authIndex: String, model: String) async throws {
+    func warmup(daemonClient: DaemonIPCClient, authIndex: String, model: String) async throws {
         let upstreamModel = mapAntigravityModelAlias(model)
         let payload = AntigravityWarmupRequest(
             project: "warmup-" + String(UUID().uuidString.prefix(5)).lowercased(),
@@ -35,24 +35,31 @@ actor WarmupService {
             throw WarmupError.encodingFailed
         }
         
+        let header = [
+            "Authorization": "Bearer $TOKEN$",
+            "Content-Type": "application/json",
+            "User-Agent": "antigravity/1.104.0"
+        ]
+        
         var lastError: WarmupError?
         for baseURL in antigravityBaseURLs {
-            let response = try await managementClient.apiCall(APICallRequest(
+            let result = try await daemonClient.apiCall(
                 authIndex: authIndex,
                 method: "POST",
                 url: baseURL + "/v1internal:generateContent",
-                header: [
-                    "Authorization": "Bearer $TOKEN$",
-                    "Content-Type": "application/json",
-                    "User-Agent": "antigravity/1.104.0"
-                ],
+                header: header,
                 data: body
-            ))
+            )
             
-            if 200...299 ~= response.statusCode {
+            if !result.success {
+                lastError = WarmupError.httpError(0, result.error)
+                continue
+            }
+            
+            if let statusCode = result.statusCode, 200...299 ~= statusCode {
                 return
             }
-            lastError = WarmupError.httpError(response.statusCode, response.body)
+            lastError = WarmupError.httpError(result.statusCode ?? 0, result.body)
         }
         
         if let lastError {
@@ -88,13 +95,13 @@ actor WarmupService {
         }
     }
     
-    func fetchModels(managementClient: ManagementAPIClient, authFileName: String) async throws -> [WarmupModelInfo] {
-        let models = try await managementClient.fetchAuthFileModels(name: authFileName)
-        return models.map { model in
+    func fetchModels(daemonClient: DaemonIPCClient, authFileName: String) async throws -> [WarmupModelInfo] {
+        let result = try await daemonClient.getAuthModels(name: authFileName)
+        return result.models.map { model in
             WarmupModelInfo(
                 id: model.id,
                 ownedBy: model.ownedBy,
-                provider: model.type
+                provider: model.provider
             )
         }
     }

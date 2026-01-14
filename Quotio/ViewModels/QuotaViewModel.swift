@@ -45,6 +45,17 @@ final class QuotaViewModel {
     @ObservationIgnored private let traeFetcher = TraeQuotaFetcher()
     @ObservationIgnored private let kiroFetcher = KiroQuotaFetcher()
     
+    // Daemon services for IPC-based operations
+    @ObservationIgnored private let daemonManager = DaemonManager.shared
+    @ObservationIgnored private let daemonQuotaService = DaemonQuotaService.shared
+    @ObservationIgnored private let daemonAuthService = DaemonAuthService.shared
+    @ObservationIgnored private let daemonAPIKeysService = DaemonAPIKeysService.shared
+    
+    private func shouldUseDaemonForAuth() async -> Bool {
+        guard !modeManager.isRemoteProxyMode else { return false }
+        return await daemonManager.checkHealth()
+    }
+    
     @ObservationIgnored private var lastKnownAccountStatuses: [String: String] = [:]
     
     var currentPage: NavigationPage = .dashboard
@@ -297,27 +308,28 @@ final class QuotaViewModel {
         directAuthFiles = await directAuthService.scanAllAuthFiles()
     }
     
-    /// Refresh quotas directly without proxy (for Quota-Only Mode)
-    /// Note: Cursor and Trae are NOT auto-refreshed - user must use "Scan for IDEs" (issue #29)
     func refreshQuotasDirectly() async {
         guard !isLoadingQuotas else { return }
         
         isLoadingQuotas = true
         lastQuotaRefreshTime = Date()
         
-        // Fetch from available fetchers in parallel
-        // Note: Cursor and Trae removed from auto-refresh to address privacy concerns (issue #29)
-        // User must explicitly scan for IDEs to detect Cursor/Trae quotas
-        async let antigravity: () = refreshAntigravityQuotasInternal()
-        async let openai: () = refreshOpenAIQuotasInternal()
-        async let copilot: () = refreshCopilotQuotasInternal()
-        async let claudeCode: () = refreshClaudeCodeQuotasInternal()
-        async let codexCLI: () = refreshCodexCLIQuotasInternal()
-        async let geminiCLI: () = refreshGeminiCLIQuotasInternal()
-        async let glm: () = refreshGlmQuotasInternal()
-        async let kiro: () = refreshKiroQuotasInternal()
+        let daemonAvailable = await daemonManager.checkHealth()
+        
+        if daemonAvailable {
+            await refreshQuotasViaDaemon()
+        } else {
+            async let antigravity: () = refreshAntigravityQuotasInternal()
+            async let openai: () = refreshOpenAIQuotasInternal()
+            async let copilot: () = refreshCopilotQuotasInternal()
+            async let claudeCode: () = refreshClaudeCodeQuotasInternal()
+            async let codexCLI: () = refreshCodexCLIQuotasInternal()
+            async let geminiCLI: () = refreshGeminiCLIQuotasInternal()
+            async let glm: () = refreshGlmQuotasInternal()
+            async let kiro: () = refreshKiroQuotasInternal()
 
-        _ = await (antigravity, openai, copilot, claudeCode, codexCLI, geminiCLI, glm, kiro)
+            _ = await (antigravity, openai, copilot, claudeCode, codexCLI, geminiCLI, glm, kiro)
+        }
         
         checkQuotaNotifications()
         autoSelectMenuBarItems()
@@ -703,11 +715,6 @@ final class QuotaViewModel {
             return
         }
         
-        guard let apiClient else {
-            // Warmup skipped when management client is missing; no log.
-            return
-        }
-        
         guard let authInfo = warmupAuthInfo(provider: provider, accountKey: accountKey) else {
             // Warmup skipped when auth index is missing; no log.
             return
@@ -716,8 +723,7 @@ final class QuotaViewModel {
         let availableModels = await fetchWarmupModels(
             provider: provider,
             accountKey: accountKey,
-            authFileName: authInfo.authFileName,
-            apiClient: apiClient
+            authFileName: authInfo.authFileName
         )
         guard !availableModels.isEmpty else {
             // Warmup skipped when no models are available; no log.
@@ -727,8 +733,7 @@ final class QuotaViewModel {
             provider: provider,
             accountKey: accountKey,
             availableModels: availableModels,
-            authIndex: authInfo.authIndex,
-            apiClient: apiClient
+            authIndex: authInfo.authIndex
         )
     }
 
@@ -736,8 +741,7 @@ final class QuotaViewModel {
         provider: AIProvider,
         accountKey: String,
         availableModels: [WarmupModelInfo],
-        authIndex: String,
-        apiClient: ManagementAPIClient
+        authIndex: String
     ) async {
         guard provider == .antigravity else {
             // Warmup not supported for this provider; no log.
@@ -762,6 +766,8 @@ final class QuotaViewModel {
             }
         }
         
+        let daemonClient = DaemonIPCClient.shared
+        
         for model in models {
             if Task.isCancelled { break }
             do {
@@ -770,7 +776,7 @@ final class QuotaViewModel {
                     status.modelStates[model] = .running
                 }
                 try await warmupService.warmup(
-                    managementClient: apiClient,
+                    daemonClient: daemonClient,
                     authIndex: authIndex,
                     model: model
                 )
@@ -796,8 +802,7 @@ final class QuotaViewModel {
     private func fetchWarmupModels(
         provider: AIProvider,
         accountKey: String,
-        authFileName: String,
-        apiClient: ManagementAPIClient
+        authFileName: String
     ) async -> [WarmupModelInfo] {
         do {
             let key = WarmupAccountKey(provider: provider, accountKey: accountKey)
@@ -807,7 +812,8 @@ final class QuotaViewModel {
                     return cached.models
                 }
             }
-            let models = try await warmupService.fetchModels(managementClient: apiClient, authFileName: authFileName)
+            let daemonClient = DaemonIPCClient.shared
+            let models = try await warmupService.fetchModels(daemonClient: daemonClient, authFileName: authFileName)
             warmupModelCache[key] = (models: models, fetchedAt: Date())
             // Warmup fetched models; no log.
             return models
@@ -819,13 +825,11 @@ final class QuotaViewModel {
 
     func warmupAvailableModels(provider: AIProvider, accountKey: String) async -> [String] {
         guard provider == .antigravity else { return [] }
-        guard let apiClient else { return [] }
         guard let authInfo = warmupAuthInfo(provider: provider, accountKey: accountKey) else { return [] }
         let models = await fetchWarmupModels(
             provider: provider,
             accountKey: accountKey,
-            authFileName: authInfo.authFileName,
-            apiClient: apiClient
+            authFileName: authInfo.authFileName
         )
         return models.map(\.id).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
@@ -1095,10 +1099,6 @@ final class QuotaViewModel {
         isLoadingQuotas = false
     }
     
-    /// Unified quota refresh - works in both Full Mode and Quota-Only Mode
-    /// In Full Mode: uses direct fetchers (works without proxy)
-    /// In Quota-Only Mode: uses direct fetchers + CLI fetchers
-    /// Note: Cursor and Trae require explicit user scan (issue #29)
     func refreshQuotasUnified() async {
         guard !isLoadingQuotas else { return }
 
@@ -1106,8 +1106,29 @@ final class QuotaViewModel {
         lastQuotaRefreshTime = Date()
         lastQuotaRefresh = Date()
 
-        // Refresh direct fetchers (these don't need proxy)
-        // Note: Cursor and Trae removed - require explicit scan (issue #29)
+        let daemonAvailable = await daemonManager.checkHealth()
+        
+        if daemonAvailable {
+            await refreshQuotasViaDaemon()
+        } else {
+            await refreshQuotasViaDirectFetchers()
+        }
+
+        checkQuotaNotifications()
+        autoSelectMenuBarItems()
+
+        isLoadingQuotas = false
+    }
+    
+    private func refreshQuotasViaDaemon() async {
+        await daemonQuotaService.fetchAllQuotas(forceRefresh: true)
+        
+        for (provider, accountQuotas) in daemonQuotaService.quotas {
+            providerQuotas[provider] = accountQuotas
+        }
+    }
+    
+    private func refreshQuotasViaDirectFetchers() async {
         async let antigravity: () = refreshAntigravityQuotasInternal()
         async let openai: () = refreshOpenAIQuotasInternal()
         async let copilot: () = refreshCopilotQuotasInternal()
@@ -1115,7 +1136,6 @@ final class QuotaViewModel {
         async let glm: () = refreshGlmQuotasInternal()
         async let kiro: () = refreshKiroQuotasInternal()
 
-        // In Quota-Only Mode, also include CLI fetchers
         if modeManager.isMonitorMode {
             async let codexCLI: () = refreshCodexCLIQuotasInternal()
             async let geminiCLI: () = refreshGeminiCLIQuotasInternal()
@@ -1123,11 +1143,6 @@ final class QuotaViewModel {
         } else {
             _ = await (antigravity, openai, copilot, claudeCode, glm, kiro)
         }
-
-        checkQuotaNotifications()
-        autoSelectMenuBarItems()
-
-        isLoadingQuotas = false
     }
     
     private func refreshAntigravityQuotasInternal() async {
@@ -1242,18 +1257,41 @@ final class QuotaViewModel {
     }
     
     func startOAuth(for provider: AIProvider, projectId: String? = nil, authMethod: AuthCommand? = nil) async {
-        // GitHub Copilot uses Device Code Flow via CLI binary, not Management API
         if provider == .copilot {
             await startCopilotAuth()
             return
         }
         
-        // Kiro uses CLI-based auth with multiple options
         if provider == .kiro {
             await startKiroAuth(method: authMethod ?? .kiroGoogleLogin)
             return
         }
 
+        if await shouldUseDaemonForAuth() {
+            await startOAuthViaDaemon(for: provider, projectId: projectId)
+        } else {
+            await startOAuthViaAPI(for: provider, projectId: projectId)
+        }
+    }
+    
+    private func startOAuthViaDaemon(for provider: AIProvider, projectId: String? = nil) async {
+        oauthState = OAuthState(provider: provider, status: .waiting)
+        
+        do {
+            let daemonState = try await daemonAuthService.startOAuth(provider: provider, projectId: projectId)
+            
+            if let url = URL(string: daemonState.url) {
+                NSWorkspace.shared.open(url)
+            }
+            
+            oauthState = OAuthState(provider: provider, status: .polling, state: daemonState.state)
+            await pollOAuthStatusViaDaemon(state: daemonState.state, provider: provider)
+        } catch {
+            oauthState = OAuthState(provider: provider, status: .error, error: error.localizedDescription)
+        }
+    }
+    
+    private func startOAuthViaAPI(for provider: AIProvider, projectId: String? = nil) async {
         guard let client = apiClient else {
             oauthState = OAuthState(provider: provider, status: .error, error: "Proxy not running. Please start the proxy first.")
             return
@@ -1397,28 +1435,57 @@ final class QuotaViewModel {
         oauthState = OAuthState(provider: provider, status: .error, error: "OAuth timeout")
     }
     
+    private func pollOAuthStatusViaDaemon(state: String, provider: AIProvider) async {
+        for _ in 0..<60 {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            
+            do {
+                let result = try await daemonAuthService.pollOAuthStatus(state: state)
+                
+                switch result.status {
+                case .completed:
+                    oauthState = OAuthState(provider: provider, status: .success)
+                    await refreshData()
+                    return
+                case .failed:
+                    oauthState = OAuthState(provider: provider, status: .error, error: result.error)
+                    return
+                case .expired:
+                    oauthState = OAuthState(provider: provider, status: .error, error: "OAuth session expired")
+                    return
+                case .pending:
+                    continue
+                }
+            } catch {
+                continue
+            }
+        }
+        
+        oauthState = OAuthState(provider: provider, status: .error, error: "OAuth timeout")
+    }
+    
     func cancelOAuth() {
         oauthState = nil
     }
     
     func deleteAuthFile(_ file: AuthFile) async {
-        guard let client = apiClient else { return }
-        
         do {
-            try await client.deleteAuthFile(name: file.name)
+            if await shouldUseDaemonForAuth() {
+                try await daemonAuthService.deleteAuthFile(name: file.name)
+            } else {
+                guard let client = apiClient else { return }
+                try await client.deleteAuthFile(name: file.name)
+            }
             
-            // Remove quota data for this account
             if let provider = file.providerType {
                 let accountKey = file.quotaLookupKey.isEmpty ? file.name : file.quotaLookupKey
                 providerQuotas[provider]?.removeValue(forKey: accountKey)
                 
-                // Also try with email if different
                 if let email = file.email, email != accountKey {
                     providerQuotas[provider]?.removeValue(forKey: email)
                 }
             }
             
-            // Prune menu bar items that no longer exist
             pruneMenuBarItems()
             
             await refreshData()
@@ -1498,47 +1565,77 @@ final class QuotaViewModel {
     }
     
     func fetchAPIKeys() async {
-        guard let client = apiClient else { return }
-        
-        do {
-            apiKeys = try await client.fetchAPIKeys()
-        } catch {
-            errorMessage = error.localizedDescription
+        if await shouldUseDaemonForAuth() {
+            apiKeys = await daemonAPIKeysService.fetchAPIKeys()
+        } else {
+            guard let client = apiClient else { return }
+            do {
+                apiKeys = try await client.fetchAPIKeys()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
     
     func addAPIKey(_ key: String) async {
-        guard let client = apiClient else { return }
         guard !key.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         
-        do {
-            try await client.addAPIKey(key)
-            await fetchAPIKeys()
-        } catch {
-            errorMessage = error.localizedDescription
+        if await shouldUseDaemonForAuth() {
+            do {
+                _ = try await daemonAPIKeysService.addAPIKey()
+                await fetchAPIKeys()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        } else {
+            guard let client = apiClient else { return }
+            do {
+                try await client.addAPIKey(key)
+                await fetchAPIKeys()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
     
     func updateAPIKey(old: String, new: String) async {
-        guard let client = apiClient else { return }
         guard !new.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         
-        do {
-            try await client.updateAPIKey(old: old, new: new)
-            await fetchAPIKeys()
-        } catch {
-            errorMessage = error.localizedDescription
+        if await shouldUseDaemonForAuth() {
+            do {
+                try await daemonAPIKeysService.deleteAPIKey(old)
+                _ = try await daemonAPIKeysService.addAPIKey()
+                await fetchAPIKeys()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        } else {
+            guard let client = apiClient else { return }
+            do {
+                try await client.updateAPIKey(old: old, new: new)
+                await fetchAPIKeys()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
     
     func deleteAPIKey(_ key: String) async {
-        guard let client = apiClient else { return }
-        
-        do {
-            try await client.deleteAPIKey(value: key)
-            await fetchAPIKeys()
-        } catch {
-            errorMessage = error.localizedDescription
+        if await shouldUseDaemonForAuth() {
+            do {
+                try await daemonAPIKeysService.deleteAPIKey(key)
+                await fetchAPIKeys()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        } else {
+            guard let client = apiClient else { return }
+            do {
+                try await client.deleteAPIKey(value: key)
+                await fetchAPIKeys()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
     
