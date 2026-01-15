@@ -3,7 +3,7 @@
 **Created:** 2026-01-13
 **Updated:** 2026-01-15
 **Branch:** feat/universal-provider-architecture  
-**Status:** Ready for Implementation - All TS equivalents ported
+**Status:** Phase 4 Complete - QuotaFetchers migrated
 
 ## Overview
 
@@ -13,19 +13,24 @@ Migration plan to remove redundant Swift code after business logic has been port
 
 | Category | Files | Lines | Status |
 |----------|-------|-------|--------|
-| Deprecated code (can delete) | 2 | 875 | Ready |
-| QuotaFetchers (TS ported) | 6 | 2,217 | Ready after migration |
-| FallbackFormatConverter | 1 | 63 | ✅ **Already simplified** (was 1,190) |
-| ProxyBridge (simplify) | 1 | ~40 lines removable | Ready after Phase 2 |
-| **Total potential cleanup** | **10 files** | **~3,195 lines** | |
+| AppMode.swift (deprecated) | 1 | 149 | ✅ **Deleted** |
+| ManagementAPIClient | 1 | 726 | ⚠️ **BLOCKED** (still needed for remote mode + refreshData) |
+| QuotaFetchers (TS ported) | 6 | 2,217 | ✅ **Deleted** (commit 34d39bf) |
+| FallbackFormatConverter | 1 | 63 | ✅ **Simplified** (was 1,190) |
+| ProxyBridge (simplify) | 1 | ~40 lines removable | Pending Phase 2 |
+| **Total removed so far** | **8 files** | **~2,366 lines** | |
 
 ### Recent Progress (2026-01-15)
 
-**Commit e1ed27a** (`refactor(fallback): simplify fallback logic by removing format conversion`) completed Phase 3.4 early:
+**Commit 34d39bf** (`refactor(quota): migrate Kiro and Copilot fetchers to daemon IPC`) completed Phase 4:
+- Deleted 6 quota fetchers (2,217 lines total)
+- Added `quota.refreshTokens` IPC for Kiro token refresh
+- Added `copilot.availableModels` IPC for Copilot model filtering
+- Updated QuotaViewModel and AgentConfigurationService to use daemon
+
+**Commit e1ed27a** (`refactor(fallback): simplify fallback logic by removing format conversion`) completed Phase 3.4:
 - `FallbackFormatConverter.swift` reduced from 1,190 → 63 lines
 - Added `ModelType` enum to `FallbackModels.swift` for same-type-only fallback
-- Fallback now only works between models of same type (Claude→Claude, GPT→GPT, etc.)
-- Cross-format conversion logic removed - no longer needed
 
 ---
 
@@ -53,55 +58,49 @@ All quota fetchers and format converter have been ported to `quotio-cli`:
 
 Files that are already deprecated and have no/minimal dependencies.
 
-### 1.1 Delete `AppMode.swift` (149 lines)
+### 1.1 Delete `AppMode.swift` (149 lines) ✅ DONE
 
 | Property | Value |
 |----------|-------|
 | File | `Quotio/Models/AppMode.swift` |
-| Status | `@available(*, deprecated)` |
+| Status | ✅ **DELETED** |
 | Replacement | `OperatingMode.swift` |
-| Dependencies | Only referenced in `OperatingMode.swift` for backward compat |
-
-**Steps:**
-```bash
-# 1. Remove any imports/references in OperatingMode.swift
-# 2. Delete the file
-rm Quotio/Models/AppMode.swift
-# 3. Verify build
-xcodebuild -project Quotio.xcodeproj -scheme Quotio -configuration Debug build
-```
+| Notes | File no longer exists. Migration references remain in `OperatingMode.swift` for UserDefaults backward compat. |
 
 ### 1.2 Migrate `ManagementAPIClient` Usages (726 lines)
 
 | Property | Value |
 |----------|-------|
 | File | `Quotio/Services/ManagementAPIClient.swift` |
-| Status | `@available(*, deprecated)` |
+| Status | `@available(*, deprecated)` - **BLOCKED** |
 | Replacement | `DaemonIPCClient` |
-| Dependencies | 4 files still using it |
+| Dependencies | Multiple files still using it |
 
-**Files to migrate:**
+> **⚠️ BLOCKED (2026-01-15)**: This migration is more complex than initially scoped.
+> 
+> **Blocker**: `QuotaViewModel.refreshData()` uses `ManagementAPIClient` for:
+> - `client.fetchAuthFiles()` → needs `DaemonAuthService.listAuthFiles()` integration
+> - `client.fetchUsageStats()` → needs daemon IPC method
+> - `client.fetchAPIKeys()` → needs `DaemonAPIKeysService` integration
+> 
+> **Current state**:
+> - `LogsViewModel`: Already uses daemon for local, API for remote ✅
+> - `QuotaViewModel`: Mixed - uses daemon for some ops, API for `refreshData()`
+> - Remote mode still requires `ManagementAPIClient` (no daemon-based remote API calls)
+> 
+> **Required work**:
+> 1. Refactor `refreshData()` to use daemon services for local mode
+> 2. Add remote mode API calls through daemon IPC (or keep ManagementAPIClient for remote)
+> 3. This is a **medium-sized refactor**, not a simple migration
 
-| File | Current Usage | Migrate To |
-|------|---------------|------------|
-| `ViewModels/LogsViewModel.swift:15,25` | `ManagementAPIClient` for logs | `DaemonIPCClient.fetchLogs()` |
-| `ViewModels/QuotaViewModel.swift:15,17,296,966` | `ManagementAPIClient` for remote mode | `DaemonIPCClient.remoteSetConfig()` |
-| `Views/Screens/SettingsScreen.swift:335,592` | Remote mode config | `DaemonProxyConfigService` |
-| `Models/ConnectionMode.swift:136` | Base URL extraction | Keep for remote mode display only |
+**Files using ManagementAPIClient:**
 
-**Steps:**
-```swift
-// 1. In LogsViewModel.swift, replace:
-private var apiClient: ManagementAPIClient?
-// With:
-private let ipcClient = DaemonIPCClient.shared
-
-// 2. Replace API calls:
-// OLD: try await apiClient?.fetchLogs()
-// NEW: try await ipcClient.fetchLogs()
-
-// 3. After all migrations complete, delete ManagementAPIClient.swift
-```
+| File | Current Usage | Status |
+|------|---------------|--------|
+| `ViewModels/LogsViewModel.swift` | Remote mode logs | ✅ Correct (remote needs API) |
+| `ViewModels/QuotaViewModel.swift` | `refreshData()` + remote mode | ⚠️ Local should use daemon |
+| `Views/Screens/SettingsScreen.swift` | Comments only | ✅ No code changes needed |
+| `Models/ConnectionMode.swift` | Base URL extraction | ✅ Keep for remote mode |
 
 ---
 
@@ -140,33 +139,44 @@ Once CLI handles fallback, simplify `ProxyBridge.swift` from 930 lines to ~200 l
 
 ## Phase 4: Delete QuotaFetchers (After Phase 1.2)
 
+> **Detailed Plan:** See [phase4-quota-fetcher-migration.md](./phase4-quota-fetcher-migration.md)
+
 After `QuotaViewModel` is migrated to use `DaemonIPCClient.fetchQuotas()`:
 
-| ID | File to Delete | Lines | Reason |
-|----|----------------|-------|--------|
-| 4.1 | `QuotaFetchers/KiroQuotaFetcher.swift` | 519 | TS equivalent: `kiro.ts` |
-| 4.2 | `QuotaFetchers/ClaudeCodeQuotaFetcher.swift` | 364 | TS equivalent: `claude.ts` |
-| 4.3 | `QuotaFetchers/CopilotQuotaFetcher.swift` | 487 | TS equivalent: `copilot.ts` |
-| 4.4 | `QuotaFetchers/OpenAIQuotaFetcher.swift` | 291 | TS equivalent: `openai.ts` |
-| 4.5 | `QuotaFetchers/GeminiCLIQuotaFetcher.swift` | 186 | TS equivalent: `gemini.ts` |
-| 4.6 | `QuotaFetchers/CodexCLIQuotaFetcher.swift` | 370 | TS equivalent: `codex.ts` |
-| **Total** | | **2,217** | |
+## Phase 4: Delete QuotaFetchers ✅ DONE
 
-**Steps for each fetcher:**
-```bash
-# 1. Verify TS equivalent works via daemon
-cd quotio-cli && bun test
+> **Completed:** Commit `34d39bf` (2026-01-15)
+> 
+> All 6 quota fetchers migrated to daemon IPC and deleted: 2,217 lines removed.
 
-# 2. Update QuotaViewModel to use DaemonIPCClient
-# Replace: let result = await KiroQuotaFetcher.shared.fetch()
-# With: let result = try await DaemonIPCClient.shared.fetchQuotas(provider: "kiro")
+### Phase 4A: Safe Deletions ✅ DONE
 
-# 3. Delete Swift file
-rm Quotio/Services/QuotaFetchers/KiroQuotaFetcher.swift
+| ID | File Deleted | Lines | Status |
+|----|--------------|-------|--------|
+| 4A.1 | `QuotaFetchers/OpenAIQuotaFetcher.swift` | 291 | ✅ Deleted |
+| 4A.2 | `QuotaFetchers/ClaudeCodeQuotaFetcher.swift` | 364 | ✅ Deleted |
+| 4A.3 | `QuotaFetchers/GeminiCLIQuotaFetcher.swift` | 186 | ✅ Deleted |
+| 4A.4 | `QuotaFetchers/CodexCLIQuotaFetcher.swift` | 370 | ✅ Deleted |
+| **Subtotal** | | **1,211** | ✅ |
 
-# 4. Verify build
-xcodebuild -project Quotio.xcodeproj -scheme Quotio -configuration Debug build
-```
+### Phase 4B: Blocked Deletions ✅ DONE
+
+| ID | File Deleted | Lines | Resolution |
+|----|--------------|-------|------------|
+| 4B.1 | `QuotaFetchers/KiroQuotaFetcher.swift` | 519 | ✅ Added `quota.refreshTokens` IPC |
+| 4B.2 | `QuotaFetchers/CopilotQuotaFetcher.swift` | 487 | ✅ Added `copilot.availableModels` IPC |
+| **Subtotal** | | **1,006** | ✅ |
+
+| **Total Removed** | | **2,217 lines** | ✅ |
+
+### Remaining QuotaFetchers (KEEP - macOS-specific)
+
+| File | Lines | Reason |
+|------|-------|--------|
+| `CursorQuotaFetcher.swift` | 406 | Reads local SQLite from Cursor app |
+| `TraeQuotaFetcher.swift` | 368 | Reads local JSON from Trae IDE |
+| `GLMQuotaFetcher.swift` | ~200 | GLM provider (external service) |
+| `AntigravityQuotaFetcher.swift` | 843 | Complex protobuf + DB injection |
 
 ---
 
@@ -263,14 +273,14 @@ CLIProxyManager
 │   └── FallbackSettingsManager
 ├── ProxyStorageManager
 └── QuotaFetchers (Swift)
-    ├── KiroQuotaFetcher (519 lines) ← DELETE
-    ├── ClaudeCodeQuotaFetcher (364 lines) ← DELETE
-    ├── CopilotQuotaFetcher (487 lines) ← DELETE
-    ├── OpenAIQuotaFetcher (291 lines) ← DELETE
-    ├── GeminiCLIQuotaFetcher (186 lines) ← DELETE
-    ├── CodexCLIQuotaFetcher (370 lines) ← DELETE
-    ├── CursorQuotaFetcher (406 lines) ← KEEP
-    └── TraeQuotaFetcher (368 lines) ← KEEP
+    ├── OpenAIQuotaFetcher (291 lines) ← DELETE (Phase 4A)
+    ├── ClaudeCodeQuotaFetcher (364 lines) ← DELETE (Phase 4A)
+    ├── GeminiCLIQuotaFetcher (186 lines) ← DELETE (Phase 4A)
+    ├── CodexCLIQuotaFetcher (370 lines) ← DELETE (Phase 4A)
+    ├── KiroQuotaFetcher (519 lines) ← DELETE (Phase 4B - needs IPC)
+    ├── CopilotQuotaFetcher (487 lines) ← DELETE (Phase 4B - needs IPC)
+    ├── CursorQuotaFetcher (406 lines) ← KEEP (macOS SQLite)
+    └── TraeQuotaFetcher (368 lines) ← KEEP (macOS JSON)
 
 ViewModels
 ├── QuotaViewModel
@@ -308,12 +318,13 @@ quotio-cli daemon (TypeScript):
 | Week | Phase | Tasks | Lines Removed |
 |------|-------|-------|---------------|
 | 1 | Phase 1 | Delete AppMode.swift, Migrate ManagementAPIClient | 875 |
-| 2 | Phase 4 | Delete 6 QuotaFetchers | 2,217 |
-| 3 | Phase 2-3 | Move fallback to CLI, Simplify ProxyBridge | ~40 |
-| 4 | Phase 6-7 | Testing, Documentation | 0 |
+| 2 | Phase 4A | Delete 4 QuotaFetchers (safe deletions) | 1,211 |
+| 3 | Phase 4B | Add IPC methods, Delete Kiro + Copilot fetchers | 1,006 |
+| 4 | Phase 2-3 | Move fallback to CLI, Simplify ProxyBridge | ~40 |
+| 5 | Phase 6-7 | Testing, Documentation | 0 |
 | **Total** | | | **~3,132 lines** |
 
-> **Note**: Original estimate was ~5,052 lines. Reduced to ~3,132 because FallbackFormatConverter was already simplified (1,190 → 63 lines saved 1,127 lines early).
+> **Note**: Phase 4 split into 4A (safe) and 4B (blocked). See [phase4-quota-fetcher-migration.md](./phase4-quota-fetcher-migration.md) for details.
 
 ---
 
