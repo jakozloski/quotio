@@ -21,9 +21,14 @@ actor DaemonIPCClient {
     
     var socketPath: String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        // Must match quotio-cli daemon socket path: ~/.config/quotio/quotio.sock
-        // Using XDG-compliant path for consistency with cross-platform CLI
-        return "\(home)/.config/quotio/quotio.sock"
+        // Must match quotio-cli daemon socket path
+        // macOS: ~/Library/Caches/quotio-cli/quotio.sock (cache dir for transient runtime files)
+        // Linux: ~/.cache/quotio-cli/quotio.sock
+        #if os(macOS)
+        return "\(home)/Library/Caches/quotio-cli/quotio.sock"
+        #else
+        return "\(home)/.cache/quotio-cli/quotio.sock"
+        #endif
     }
     
     var isConnected: Bool {

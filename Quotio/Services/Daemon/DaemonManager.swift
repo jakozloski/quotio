@@ -32,9 +32,12 @@ final class DaemonManager {
     }
     
     var socketPath: String {
-        // Must match quotio-cli daemon socket path: ~/.config/quotio/quotio.sock
-        // Using XDG-compliant path for consistency with cross-platform CLI
-        FileManager.default.homeDirectoryForCurrentUser.path + "/.config/quotio/quotio.sock"
+        // Must match quotio-cli: macOS uses ~/Library/Caches, Linux uses ~/.cache
+        #if os(macOS)
+        FileManager.default.homeDirectoryForCurrentUser.path + "/Library/Caches/quotio-cli/quotio.sock"
+        #else
+        FileManager.default.homeDirectoryForCurrentUser.path + "/.cache/quotio-cli/quotio.sock"
+        #endif
     }
     
     func start() async throws {
