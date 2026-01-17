@@ -11,6 +11,7 @@ import type { MetricsRegistry, RequestLogger } from '../../../logging/index.js';
 import type { TokenStore } from '../../../store/index.js';
 import { authRoutes } from './auth.js';
 import { lifecycleRoutes } from './lifecycle.js';
+import { quotaRoutes } from './quota.js';
 
 export interface ApiRoutesDeps {
 	config: Config;
@@ -30,8 +31,9 @@ export function apiRoutes(deps: ApiRoutesDeps): Hono {
 	// Auth routes (/api/auth, /api/oauth, /api/device-code)
 	app.route('/', authRoutes({ authManager: deps.authManager, store: deps.store }));
 
+	app.route('/', quotaRoutes());
+
 	// Future routes will be mounted here:
-	// app.route('/', quotaRoutes({ store }));                   // QUO-39
 	// app.route('/', agentRoutes({ ... }));                     // QUO-40
 	// app.route('/', configRoutes({ config }));                 // QUO-41
 	// app.route('/', fallbackRoutes({ ... }));                  // QUO-42
