@@ -6,6 +6,7 @@ import type { ProxyDispatcher } from '../proxy/index.js';
 import type { TokenStore } from '../store/index.js';
 import { corsMiddleware } from './middleware/cors.js';
 import { loggingMiddleware } from './middleware/logging.js';
+import { apiRoutes } from './routes/api/index.js';
 import { managementRoutes } from './routes/management/index.js';
 import { oauthRoutes } from './routes/oauth/index.js';
 import { v1Routes } from './routes/v1/index.js';
@@ -20,7 +21,7 @@ export interface AppDependencies {
 const globalMetrics = new MetricsRegistry();
 const globalLogger = new RequestLogger({
 	level: 'info',
-	skipPaths: ['/health', '/healthz', '/ready', '/live'],
+	skipPaths: ['/health', '/healthz', '/ready', '/live', '/api/health'],
 });
 
 export function createApp(deps: AppDependencies): Hono {
@@ -51,10 +52,22 @@ export function createApp(deps: AppDependencies): Hono {
 
 	app.route('/v1', v1Routes({ dispatcher }));
 
+	// New API routes for cross-platform clients (replaces daemon IPC)
+	app.route(
+		'/api',
+		apiRoutes({
+			config,
+			authManager,
+			store,
+			metrics: globalMetrics,
+			logger: globalLogger,
+		}),
+	);
+
+	// Legacy management routes (will be deprecated in favor of /api)
 	app.route(
 		'/v0/management',
 		managementRoutes({
-			config,
 			authManager,
 			store,
 			metrics: globalMetrics,
@@ -66,7 +79,7 @@ export function createApp(deps: AppDependencies): Hono {
 		return c.json(
 			{
 				error: {
-					message: 'Not Found: ' + c.req.path,
+					message: `Not Found: ${c.req.path}`,
 					type: 'invalid_request_error',
 					code: 'not_found',
 				},
@@ -76,7 +89,7 @@ export function createApp(deps: AppDependencies): Hono {
 	});
 
 	app.onError((err, c) => {
-		console.error('[ERROR] ' + c.req.method + ' ' + c.req.path + ':', err);
+		console.error(`[ERROR] ${c.req.method} ${c.req.path}:`, err);
 		return c.json(
 			{
 				error: {
