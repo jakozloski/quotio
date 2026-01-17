@@ -167,7 +167,7 @@ struct QuotaScreen: View {
                         provider: provider,
                         authFiles: viewModel.authFiles.filter { $0.providerType == provider },
                         quotaData: viewModel.providerQuotas[provider] ?? [:],
-                        subscriptionInfos: viewModel.subscriptionInfos,
+                        subscriptionInfos: viewModel.subscriptionInfos[provider] ?? [:],
                         isLoading: viewModel.isLoadingQuotas
                     )
                     .padding(.horizontal, 24)
