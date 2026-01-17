@@ -6,17 +6,24 @@
 import { Hono } from "hono";
 import type { Config } from "../../../config/index.js";
 import type { AuthManager } from "../../../auth/index.js";
+import type { TokenStore } from "../../../store/index.js";
+import type { MetricsRegistry, RequestLogger } from "../../../logging/index.js";
 import { healthRoutes } from "./health.js";
 import { oauthManagementRoutes } from "./oauth.js";
+import { usageRoutes } from "./usage.js";
+import { logsRoutes } from "./logs.js";
 
 interface ManagementRoutesDeps {
 	config: Config;
 	authManager: AuthManager;
+	store: TokenStore;
+	metrics: MetricsRegistry;
+	logger: RequestLogger;
 }
 
 export function managementRoutes(deps: ManagementRoutesDeps): Hono {
 	const app = new Hono();
-	const { config, authManager } = deps;
+	const { config, authManager, store, metrics, logger } = deps;
 
 	// Mount health routes at /
 	app.route("/", healthRoutes({ config }));
@@ -24,25 +31,11 @@ export function managementRoutes(deps: ManagementRoutesDeps): Hono {
 	// Mount OAuth management routes
 	app.route("/", oauthManagementRoutes({ authManager }));
 
-	// Placeholder for usage stats (Phase 6+)
-	app.get("/usage", (c) => {
-		return c.json({
-			error: {
-				message: "Usage statistics not yet implemented",
-				type: "not_implemented",
-			},
-		}, 501);
-	});
+	// Mount usage routes
+	app.route("/usage", usageRoutes({ metrics, store }));
 
-	// Placeholder for logs (Phase 6+)
-	app.get("/logs", (c) => {
-		return c.json({
-			error: {
-				message: "Logs not yet implemented",
-				type: "not_implemented",
-			},
-		}, 501);
-	});
+	// Mount logs routes
+	app.route("/logs", logsRoutes({ logger }));
 
 	return app;
 }

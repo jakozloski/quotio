@@ -8,6 +8,7 @@ import type { Config } from "../config/index.js";
 import type { AuthManager } from "../auth/index.js";
 import type { TokenStore } from "../store/index.js";
 import type { ProxyDispatcher } from "../proxy/index.js";
+import { MetricsRegistry, RequestLogger } from "../logging/index.js";
 import { loggingMiddleware } from "./middleware/logging.js";
 import { corsMiddleware } from "./middleware/cors.js";
 import { createPassthroughMiddleware } from "./middleware/passthrough.js";
@@ -22,13 +23,23 @@ export interface AppDependencies {
 	dispatcher: ProxyDispatcher;
 }
 
+// Global instances for metrics and logging
+const globalMetrics = new MetricsRegistry();
+const globalLogger = new RequestLogger({
+	level: "info",
+	skipPaths: ["/health", "/healthz", "/ready", "/live"],
+});
+
 export function createApp(deps: AppDependencies): Hono {
 	const app = new Hono();
-	const { config, authManager, dispatcher } = deps;
+	const { config, authManager, store, dispatcher } = deps;
 
 	// Global middleware
 	app.use("*", loggingMiddleware);
 	app.use("*", corsMiddleware);
+
+	// Request logging middleware
+	app.use("*", globalLogger.middleware());
 
 	// Passthrough middleware (forwards unimplemented endpoints to CLIProxyAPI)
 	const passthrough = createPassthroughMiddleware(config);
@@ -59,7 +70,16 @@ export function createApp(deps: AppDependencies): Hono {
 	app.route("/v1", v1Routes({ dispatcher }));
 
 	// Management API
-	app.route("/v0/management", managementRoutes({ config, authManager }));
+	app.route(
+		"/v0/management",
+		managementRoutes({
+			config,
+			authManager,
+			store,
+			metrics: globalMetrics,
+			logger: globalLogger,
+		})
+	);
 
 	// 404 handler
 	app.notFound((c) => {
@@ -71,7 +91,7 @@ export function createApp(deps: AppDependencies): Hono {
 					code: "not_found",
 				},
 			},
-			404,
+			404
 		);
 	});
 
@@ -86,9 +106,12 @@ export function createApp(deps: AppDependencies): Hono {
 					code: "internal_error",
 				},
 			},
-			500,
+			500
 		);
 	});
 
 	return app;
 }
+
+// Export for testing
+export { globalMetrics, globalLogger };
