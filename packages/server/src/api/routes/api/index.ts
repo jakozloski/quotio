@@ -14,6 +14,7 @@ import { agentRoutes } from './agents.js';
 import { authRoutes } from './auth.js';
 import { configRoutes } from './config.js';
 import { fallbackRoutes } from './fallback.js';
+import { apiKeysRoutes } from './keys.js';
 import { lifecycleRoutes } from './lifecycle.js';
 import { quotaRoutes } from './quota.js';
 import { statsRoutes } from './stats.js';
@@ -46,9 +47,9 @@ export function apiRoutes(deps: ApiRoutesDeps): Hono {
 
 	app.route('/', statsRoutes());
 	app.route('/logs', logsRoutes({ logger: deps.logger }));
+	app.route('/', apiKeysRoutes({ config }));
 
 	// Future routes will be mounted here:
-	// app.route('/', apiKeysRoutes({ store }));                 // QUO-44
 
 	return app;
 }
