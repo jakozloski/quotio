@@ -12,6 +12,7 @@ import type { TokenStore } from '../../../store/index.js';
 import { agentRoutes } from './agents.js';
 import { authRoutes } from './auth.js';
 import { configRoutes } from './config.js';
+import { fallbackRoutes } from './fallback.js';
 import { lifecycleRoutes } from './lifecycle.js';
 import { quotaRoutes } from './quota.js';
 
@@ -39,8 +40,9 @@ export function apiRoutes(deps: ApiRoutesDeps): Hono {
 
 	app.route('/', configRoutes({ config }));
 
+	app.route('/', fallbackRoutes());
+
 	// Future routes will be mounted here:
-	// app.route('/', fallbackRoutes({ ... }));                  // QUO-42
 	// app.route('/', statsRoutes({ metrics, logger }));         // QUO-43
 	// app.route('/', apiKeysRoutes({ store }));                 // QUO-44
 
