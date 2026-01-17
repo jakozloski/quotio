@@ -416,6 +416,22 @@ export interface IPCMethods {
 		params: { deviceCode: string };
 		result: { success: true };
 	};
+
+	// -------------------------------------------------------------------------
+	// Kiro Google OAuth Auth
+	// -------------------------------------------------------------------------
+	'auth.kiro.google': {
+		params: Record<string, never>;
+		result: KiroGoogleAuthResult;
+	};
+	'auth.kiro.pollGoogle': {
+		params: { state: string };
+		result: KiroGooglePollResult;
+	};
+	'auth.kiro.cancelGoogle': {
+		params: { state: string };
+		result: { success: true };
+	};
 }
 
 /** All available method names */
@@ -776,6 +792,23 @@ export interface CopilotPollDeviceCodeParams {
 export interface CopilotPollDeviceCodeResult {
 	status: 'pending' | 'success' | 'error';
 	accessToken?: string;
+	error?: string;
+}
+
+// ============================================================================
+// Kiro Google OAuth Auth Types
+// ============================================================================
+
+export interface KiroGoogleAuthResult {
+	success: boolean;
+	url?: string;
+	state?: string;
+	error?: string;
+}
+
+export interface KiroGooglePollResult {
+	status: 'pending' | 'success' | 'error';
+	email?: string;
 	error?: string;
 }
 

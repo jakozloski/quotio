@@ -885,6 +885,22 @@ const handlers: Record<string, MethodHandler> = {
 		return { success: true };
 	},
 
+	'auth.kiro.google': async () => {
+		const { startKiroGoogleAuth } = await import('../auth/kiro-auth-service.ts');
+		return startKiroGoogleAuth();
+	},
+
+	'auth.kiro.pollGoogle': async (params: unknown) => {
+		const { state } = params as { state: string };
+		const { pollKiroGoogleAuth } = await import('../auth/kiro-auth-service.ts');
+		return pollKiroGoogleAuth(state);
+	},
+
+	'auth.kiro.cancelGoogle': async () => {
+		// OAuth flow cancellation - just acknowledge since we don't track state server-side
+		return { success: true };
+	},
+
 	'proxyConfig.getAll': async () => {
 		const { ManagementAPIClient } = await import('../management-api.ts');
 		const proxyState = getProcessState();
