@@ -448,6 +448,14 @@ export interface IPCMethods {
 		params: { deviceCode: string };
 		result: { success: true };
 	};
+
+	// -------------------------------------------------------------------------
+	// Kiro IDE Import
+	// -------------------------------------------------------------------------
+	'auth.kiro.import': {
+		params: Record<string, never>;
+		result: KiroImportResult;
+	};
 }
 
 /** All available method names */
@@ -844,6 +852,17 @@ export interface KiroAwsAuthResult {
 export interface KiroAwsPollResult {
 	status: 'pending' | 'success' | 'error';
 	email?: string;
+	error?: string;
+}
+
+// ============================================================================
+// Kiro IDE Import Types
+// ============================================================================
+
+export interface KiroImportResult {
+	success: boolean;
+	imported: number;
+	accounts?: Array<{ email: string; method: 'google' | 'aws' }>;
 	error?: string;
 }
 

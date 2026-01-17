@@ -917,6 +917,11 @@ const handlers: Record<string, MethodHandler> = {
 		return { success: true };
 	},
 
+	'auth.kiro.import': async () => {
+		const { importKiroFromIDE } = await import('../auth/kiro-auth-service.ts');
+		return importKiroFromIDE();
+	},
+
 	'proxyConfig.getAll': async () => {
 		const { ManagementAPIClient } = await import('../management-api.ts');
 		const proxyState = getProcessState();

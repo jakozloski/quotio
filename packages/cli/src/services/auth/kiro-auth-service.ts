@@ -506,3 +506,63 @@ async function loadAwsClientCredentials(): Promise<{
 		return { clientId: null, clientSecret: null };
 	}
 }
+
+// ============================================================================
+// Kiro IDE Import
+// ============================================================================
+
+export interface KiroImportResult {
+	success: boolean;
+	imported: number;
+	accounts?: Array<{ email: string; method: 'google' | 'aws' }>;
+	error?: string;
+}
+
+/**
+ * Import Kiro accounts from existing Kiro IDE installation
+ */
+export async function importKiroFromIDE(): Promise<KiroImportResult> {
+	const home = process.env.HOME ?? Bun.env.HOME ?? '';
+	const kiroAuthPath = `${home}/Library/Application Support/Kiro/auth.json`;
+	let imported = 0;
+	const accounts: Array<{ email: string; method: 'google' | 'aws' }> = [];
+
+	try {
+		const file = Bun.file(kiroAuthPath);
+		if (!(await file.exists())) {
+			return {
+				success: false,
+				imported: 0,
+				error: 'Kiro IDE installation not found',
+			};
+		}
+
+		const content = await file.json();
+		const authEntries = Array.isArray(content) ? content : [content];
+
+		for (const entry of authEntries) {
+			const method = entry.provider === 'google' ? 'google' : 'aws';
+			const email = entry.email || entry.account || `kiro-${method}-user`;
+			const accessToken = entry.accessToken || entry.access_token;
+			const refreshToken = entry.refreshToken || entry.refresh_token;
+
+			if (accessToken && refreshToken) {
+				await saveKiroAuthFile(method, email, accessToken, refreshToken);
+				imported++;
+				accounts.push({ email, method });
+			}
+		}
+
+		return {
+			success: true,
+			imported,
+			accounts,
+		};
+	} catch (err) {
+		return {
+			success: false,
+			imported: 0,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
