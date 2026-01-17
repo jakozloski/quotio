@@ -7,6 +7,7 @@ import { Hono } from "hono";
 import type { Config } from "../config/index.js";
 import type { AuthManager } from "../auth/index.js";
 import type { TokenStore } from "../store/index.js";
+import type { ProxyDispatcher } from "../proxy/index.js";
 import { loggingMiddleware } from "./middleware/logging.js";
 import { corsMiddleware } from "./middleware/cors.js";
 import { createPassthroughMiddleware } from "./middleware/passthrough.js";
@@ -18,11 +19,12 @@ export interface AppDependencies {
 	config: Config;
 	authManager: AuthManager;
 	store: TokenStore;
+	dispatcher: ProxyDispatcher;
 }
 
 export function createApp(deps: AppDependencies): Hono {
 	const app = new Hono();
-	const { config, authManager, store } = deps;
+	const { config, authManager, dispatcher } = deps;
 
 	// Global middleware
 	app.use("*", loggingMiddleware);
@@ -54,7 +56,7 @@ export function createApp(deps: AppDependencies): Hono {
 	app.route("/", oauthRoutes({ authManager }));
 
 	// OpenAI-compatible API (v1)
-	app.route("/v1", v1Routes());
+	app.route("/v1", v1Routes({ dispatcher }));
 
 	// Management API
 	app.route("/v0/management", managementRoutes({ config, authManager }));

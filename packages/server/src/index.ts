@@ -11,6 +11,7 @@ import { loadConfig } from "./config/index.js";
 import { createApp } from "./api/index.js";
 import { FileTokenStore } from "./store/index.js";
 import { AuthManager } from "./auth/index.js";
+import { ProxyDispatcher } from "./proxy/index.js";
 import * as os from "node:os";
 import * as path from "node:path";
 
@@ -41,8 +42,13 @@ async function main() {
 	// Initialize auth manager
 	const authManager = new AuthManager(config, store);
 
+	// Initialize proxy dispatcher
+	const dispatcher = new ProxyDispatcher(store, {
+		debug: config.debug,
+	});
+
 	// Create Hono app
-	const app = createApp({ config, authManager, store });
+	const app = createApp({ config, authManager, store, dispatcher });
 
 	// Start server
 	const server = Bun.serve({
