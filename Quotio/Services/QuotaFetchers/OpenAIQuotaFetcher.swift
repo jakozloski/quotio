@@ -160,13 +160,16 @@ actor OpenAIQuotaFetcher {
         
         for file in files where file.hasPrefix("codex-") && file.hasSuffix(".json") {
             let filePath = (expandedPath as NSString).appendingPathComponent(file)
-            
+
             do {
+                let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
+                let authFile = try JSONDecoder().decode(CodexAuthFile.self, from: data)
                 let quota = try await fetchQuotaForAuthFile(at: filePath)
-                let email = file
+                // Use email from JSON content to match DirectAuthFileService's menuBarAccountKey
+                let key = authFile.email ?? file
                     .replacingOccurrences(of: "codex-", with: "")
                     .replacingOccurrences(of: ".json", with: "")
-                results[email] = quota.toProviderQuotaData()
+                results[key] = quota.toProviderQuotaData()
             } catch {
                 Log.quota("Failed to fetch Codex quota for \(file): \(error)")
             }
