@@ -4,7 +4,7 @@
 
 ## Overview
 
-- **Lines:** 1913
+- **Lines:** 1911
 - **Language:** Swift
 - **Symbols:** 92
 - **Public symbols:** 0
@@ -76,35 +76,35 @@
 | 1252 | fn | refreshAntigravityQuotasWithoutDetect | (private) | `private func refreshAntigravityQuotasWithoutDet...` |
 | 1269 | fn | isAntigravityAccountActive | (internal) | `func isAntigravityAccountActive(email: String) ...` |
 | 1274 | fn | switchAntigravityAccount | (internal) | `func switchAntigravityAccount(email: String) async` |
-| 1286 | fn | beginAntigravitySwitch | (internal) | `func beginAntigravitySwitch(accountId: String, ...` |
-| 1291 | fn | cancelAntigravitySwitch | (internal) | `func cancelAntigravitySwitch()` |
-| 1296 | fn | dismissAntigravitySwitchResult | (internal) | `func dismissAntigravitySwitchResult()` |
-| 1299 | fn | refreshOpenAIQuotasInternal | (private) | `private func refreshOpenAIQuotasInternal() async` |
-| 1304 | fn | refreshCopilotQuotasInternal | (private) | `private func refreshCopilotQuotasInternal() async` |
-| 1309 | fn | refreshQuotaForProvider | (internal) | `func refreshQuotaForProvider(_ provider: AIProv...` |
-| 1344 | fn | refreshAutoDetectedProviders | (internal) | `func refreshAutoDetectedProviders() async` |
-| 1351 | fn | startOAuth | (internal) | `func startOAuth(for provider: AIProvider, proje...` |
-| 1393 | fn | startCopilotAuth | (private) | `private func startCopilotAuth() async` |
-| 1410 | fn | startKiroAuth | (private) | `private func startKiroAuth(method: AuthCommand)...` |
-| 1444 | fn | pollCopilotAuthCompletion | (private) | `private func pollCopilotAuthCompletion() async` |
-| 1461 | fn | pollKiroAuthCompletion | (private) | `private func pollKiroAuthCompletion() async` |
-| 1479 | fn | pollOAuthStatus | (private) | `private func pollOAuthStatus(state: String, pro...` |
-| 1507 | fn | cancelOAuth | (internal) | `func cancelOAuth()` |
-| 1511 | fn | deleteAuthFile | (internal) | `func deleteAuthFile(_ file: AuthFile) async` |
-| 1547 | fn | toggleAuthFileDisabled | (internal) | `func toggleAuthFileDisabled(_ file: AuthFile) a...` |
-| 1578 | fn | pruneMenuBarItems | (private) | `private func pruneMenuBarItems()` |
-| 1614 | fn | importVertexServiceAccount | (internal) | `func importVertexServiceAccount(url: URL) async` |
-| 1638 | fn | fetchAPIKeys | (internal) | `func fetchAPIKeys() async` |
-| 1648 | fn | addAPIKey | (internal) | `func addAPIKey(_ key: String) async` |
-| 1660 | fn | updateAPIKey | (internal) | `func updateAPIKey(old: String, new: String) async` |
-| 1672 | fn | deleteAPIKey | (internal) | `func deleteAPIKey(_ key: String) async` |
-| 1685 | fn | checkAccountStatusChanges | (private) | `private func checkAccountStatusChanges()` |
-| 1706 | fn | checkQuotaNotifications | (internal) | `func checkQuotaNotifications()` |
-| 1738 | fn | scanIDEsWithConsent | (internal) | `func scanIDEsWithConsent(options: IDEScanOption...` |
-| 1807 | fn | savePersistedIDEQuotas | (private) | `private func savePersistedIDEQuotas()` |
-| 1830 | fn | loadPersistedIDEQuotas | (private) | `private func loadPersistedIDEQuotas()` |
-| 1892 | fn | shortenAccountKey | (private) | `private func shortenAccountKey(_ key: String) -...` |
-| 1904 | struct | OAuthState | (internal) | `struct OAuthState` |
+| 1284 | fn | beginAntigravitySwitch | (internal) | `func beginAntigravitySwitch(accountId: String, ...` |
+| 1289 | fn | cancelAntigravitySwitch | (internal) | `func cancelAntigravitySwitch()` |
+| 1294 | fn | dismissAntigravitySwitchResult | (internal) | `func dismissAntigravitySwitchResult()` |
+| 1297 | fn | refreshOpenAIQuotasInternal | (private) | `private func refreshOpenAIQuotasInternal() async` |
+| 1302 | fn | refreshCopilotQuotasInternal | (private) | `private func refreshCopilotQuotasInternal() async` |
+| 1307 | fn | refreshQuotaForProvider | (internal) | `func refreshQuotaForProvider(_ provider: AIProv...` |
+| 1342 | fn | refreshAutoDetectedProviders | (internal) | `func refreshAutoDetectedProviders() async` |
+| 1349 | fn | startOAuth | (internal) | `func startOAuth(for provider: AIProvider, proje...` |
+| 1391 | fn | startCopilotAuth | (private) | `private func startCopilotAuth() async` |
+| 1408 | fn | startKiroAuth | (private) | `private func startKiroAuth(method: AuthCommand)...` |
+| 1442 | fn | pollCopilotAuthCompletion | (private) | `private func pollCopilotAuthCompletion() async` |
+| 1459 | fn | pollKiroAuthCompletion | (private) | `private func pollKiroAuthCompletion() async` |
+| 1477 | fn | pollOAuthStatus | (private) | `private func pollOAuthStatus(state: String, pro...` |
+| 1505 | fn | cancelOAuth | (internal) | `func cancelOAuth()` |
+| 1509 | fn | deleteAuthFile | (internal) | `func deleteAuthFile(_ file: AuthFile) async` |
+| 1545 | fn | toggleAuthFileDisabled | (internal) | `func toggleAuthFileDisabled(_ file: AuthFile) a...` |
+| 1576 | fn | pruneMenuBarItems | (private) | `private func pruneMenuBarItems()` |
+| 1612 | fn | importVertexServiceAccount | (internal) | `func importVertexServiceAccount(url: URL) async` |
+| 1636 | fn | fetchAPIKeys | (internal) | `func fetchAPIKeys() async` |
+| 1646 | fn | addAPIKey | (internal) | `func addAPIKey(_ key: String) async` |
+| 1658 | fn | updateAPIKey | (internal) | `func updateAPIKey(old: String, new: String) async` |
+| 1670 | fn | deleteAPIKey | (internal) | `func deleteAPIKey(_ key: String) async` |
+| 1683 | fn | checkAccountStatusChanges | (private) | `private func checkAccountStatusChanges()` |
+| 1704 | fn | checkQuotaNotifications | (internal) | `func checkQuotaNotifications()` |
+| 1736 | fn | scanIDEsWithConsent | (internal) | `func scanIDEsWithConsent(options: IDEScanOption...` |
+| 1805 | fn | savePersistedIDEQuotas | (private) | `private func savePersistedIDEQuotas()` |
+| 1828 | fn | loadPersistedIDEQuotas | (private) | `private func loadPersistedIDEQuotas()` |
+| 1890 | fn | shortenAccountKey | (private) | `private func shortenAccountKey(_ key: String) -...` |
+| 1902 | struct | OAuthState | (internal) | `struct OAuthState` |
 
 ## Memory Markers
 

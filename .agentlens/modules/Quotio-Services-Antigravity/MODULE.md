@@ -2,17 +2,19 @@
 
 [← Back to INDEX](../../INDEX.md)
 
-**Type:** implicit | **Files:** 5
+**Type:** implicit | **Files:** 7
 
 ## Files
 
 | File | Lines | Large |
 | ---- | ----- | ----- |
-| `Quotio/Services/Antigravity/AntigravityAccountSwitcher.swift` | 283 |  |
-| `Quotio/Services/Antigravity/AntigravityDatabaseService.swift` | 378 |  |
-| `Quotio/Services/Antigravity/AntigravityProcessManager.swift` | 206 |  |
-| `Quotio/Services/Antigravity/AntigravityProtobufHandler.swift` | 313 |  |
+| `Quotio/Services/Antigravity/AntigravityAccountSwitcher.swift` | 314 |  |
+| `Quotio/Services/Antigravity/AntigravityDatabaseService.swift` | 466 |  |
+| `Quotio/Services/Antigravity/AntigravityDeviceManager.swift` | 137 |  |
+| `Quotio/Services/Antigravity/AntigravityProcessManager.swift` | 208 |  |
+| `Quotio/Services/Antigravity/AntigravityProtobufHandler.swift` | 412 |  |
 | `Quotio/Services/Antigravity/AntigravityQuotaFetcher.swift` | 893 | 📊 |
+| `Quotio/Services/Antigravity/AntigravityVersionDetector.swift` | 141 |  |
 
 ## Documentation
 

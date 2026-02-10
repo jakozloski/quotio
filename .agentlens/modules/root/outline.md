@@ -110,7 +110,7 @@ Symbol maps for 5 large files in this module.
 | 254 | fn | handleNewConnection | (private) |
 | 472 | fn | createFallbackContext | (private) |
 
-## Quotio/ViewModels/QuotaViewModel.swift (1913 lines)
+## Quotio/ViewModels/QuotaViewModel.swift (1911 lines)
 
 | Line | Kind | Name | Visibility |
 | ---- | ---- | ---- | ---------- |
@@ -177,35 +177,35 @@ Symbol maps for 5 large files in this module.
 | 1252 | fn | refreshAntigravityQuotasWithoutDetect | (private) |
 | 1269 | fn | isAntigravityAccountActive | (internal) |
 | 1274 | fn | switchAntigravityAccount | (internal) |
-| 1286 | fn | beginAntigravitySwitch | (internal) |
-| 1291 | fn | cancelAntigravitySwitch | (internal) |
-| 1296 | fn | dismissAntigravitySwitchResult | (internal) |
-| 1299 | fn | refreshOpenAIQuotasInternal | (private) |
-| 1304 | fn | refreshCopilotQuotasInternal | (private) |
-| 1309 | fn | refreshQuotaForProvider | (internal) |
-| 1344 | fn | refreshAutoDetectedProviders | (internal) |
-| 1351 | fn | startOAuth | (internal) |
-| 1393 | fn | startCopilotAuth | (private) |
-| 1410 | fn | startKiroAuth | (private) |
-| 1444 | fn | pollCopilotAuthCompletion | (private) |
-| 1461 | fn | pollKiroAuthCompletion | (private) |
-| 1479 | fn | pollOAuthStatus | (private) |
-| 1507 | fn | cancelOAuth | (internal) |
-| 1511 | fn | deleteAuthFile | (internal) |
-| 1547 | fn | toggleAuthFileDisabled | (internal) |
-| 1578 | fn | pruneMenuBarItems | (private) |
-| 1614 | fn | importVertexServiceAccount | (internal) |
-| 1638 | fn | fetchAPIKeys | (internal) |
-| 1648 | fn | addAPIKey | (internal) |
-| 1660 | fn | updateAPIKey | (internal) |
-| 1672 | fn | deleteAPIKey | (internal) |
-| 1685 | fn | checkAccountStatusChanges | (private) |
-| 1706 | fn | checkQuotaNotifications | (internal) |
-| 1738 | fn | scanIDEsWithConsent | (internal) |
-| 1807 | fn | savePersistedIDEQuotas | (private) |
-| 1830 | fn | loadPersistedIDEQuotas | (private) |
-| 1892 | fn | shortenAccountKey | (private) |
-| 1904 | struct | OAuthState | (internal) |
+| 1284 | fn | beginAntigravitySwitch | (internal) |
+| 1289 | fn | cancelAntigravitySwitch | (internal) |
+| 1294 | fn | dismissAntigravitySwitchResult | (internal) |
+| 1297 | fn | refreshOpenAIQuotasInternal | (private) |
+| 1302 | fn | refreshCopilotQuotasInternal | (private) |
+| 1307 | fn | refreshQuotaForProvider | (internal) |
+| 1342 | fn | refreshAutoDetectedProviders | (internal) |
+| 1349 | fn | startOAuth | (internal) |
+| 1391 | fn | startCopilotAuth | (private) |
+| 1408 | fn | startKiroAuth | (private) |
+| 1442 | fn | pollCopilotAuthCompletion | (private) |
+| 1459 | fn | pollKiroAuthCompletion | (private) |
+| 1477 | fn | pollOAuthStatus | (private) |
+| 1505 | fn | cancelOAuth | (internal) |
+| 1509 | fn | deleteAuthFile | (internal) |
+| 1545 | fn | toggleAuthFileDisabled | (internal) |
+| 1576 | fn | pruneMenuBarItems | (private) |
+| 1612 | fn | importVertexServiceAccount | (internal) |
+| 1636 | fn | fetchAPIKeys | (internal) |
+| 1646 | fn | addAPIKey | (internal) |
+| 1658 | fn | updateAPIKey | (internal) |
+| 1670 | fn | deleteAPIKey | (internal) |
+| 1683 | fn | checkAccountStatusChanges | (private) |
+| 1704 | fn | checkQuotaNotifications | (internal) |
+| 1736 | fn | scanIDEsWithConsent | (internal) |
+| 1805 | fn | savePersistedIDEQuotas | (private) |
+| 1828 | fn | loadPersistedIDEQuotas | (private) |
+| 1890 | fn | shortenAccountKey | (private) |
+| 1902 | struct | OAuthState | (internal) |
 
 ## scripts/capture-screenshots.ts (763 lines)
 

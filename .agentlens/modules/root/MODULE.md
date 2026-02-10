@@ -17,7 +17,7 @@
 | `Quotio/Services/Tunnel/TunnelManager.swift` | 190 |  |
 | `Quotio/ViewModels/AgentSetupViewModel.swift` | 448 |  |
 | `Quotio/ViewModels/LogsViewModel.swift` | 82 |  |
-| `Quotio/ViewModels/QuotaViewModel.swift` | 1913 | 📊 |
+| `Quotio/ViewModels/QuotaViewModel.swift` | 1911 | 📊 |
 | `scripts/capture-screenshots.ts` | 763 | 📊 |
 
 ## Documentation
