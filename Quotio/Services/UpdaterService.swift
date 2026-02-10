@@ -93,14 +93,9 @@ final class UpdaterService: NSObject {
     }
     
     /// Initialize Sparkle updater on-demand (memory optimization)
+    /// Disabled: updates are handled by source-build launchd agent
     func initializeIfNeeded() {
         guard !isInitialized else { return }
-        
-        updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
-            updaterDelegate: self,
-            userDriverDelegate: nil
-        )
         isInitialized = true
     }
     
