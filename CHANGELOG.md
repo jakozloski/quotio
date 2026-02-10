@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-02-10
+
+## [0.10.0] - 2026-02-10
+
+### Added
+
+- **tunnel**: Enable remote access automatically when Cloudflare tunnel is active (#296) - thanks @benzntech 🎉
+  - Auto-toggle `allow-remote` in CLIProxyAPI config based on tunnel lifecycle
+  - Use tunnel URL for agent configuration when tunnel is active
+  - Skip local filesystem quota fetching in remote proxy mode
+  - Parse JSON error blobs for human-readable status messages in QuotaCard
+- **models**: Add gpt-5.3-codex model (#285) - thanks @DIYgod 🎉
+
+### Fixed
+
+- **auth**: Auto-refresh expired Claude OAuth tokens (#294) - thanks @jakozloski 🎉
+  - Automatically refresh access tokens using refresh tokens before quota fetch
+  - Check token expiration with buffer to prevent failed requests
+  - Persist refreshed tokens to auth files on disk
+  - Redesign menu bar to show all accounts grouped by provider
+  - Fix duplicate Codex accounts when OpenAI fetcher already populates quotas
+- **crash**: Prevent app crash when navigating to Settings or clicking mode badge (#290) - thanks @benzntech 🎉
+  - Use `@State` for `OperatingModeManager.shared` in SwiftUI views for correct observation
+  - Use `@ObservationIgnored` in view models that don't react to mode changes
+  - Add PID check in `killProcessOnPort` to prevent app from killing itself during cleanup
+
+## [0.9.0] - 2026-02-06
+
+### Added
+
+- **models**: Add Claude Opus 4.6 Thinking model (#281) - thanks @kvokka 🎉
+
+### Fixed
+
+- **proxy**: Add exponential backoff retry logic for proxy restart scenarios (#279) - thanks @benzntech 🎉
+- **quota**: Show warning icon for forbidden accounts instead of --% (#277) - thanks @1saifj 🎉
+- **upgrade**: Fix post-upgrade notification showing after successful CLI proxy update (#262) - thanks @benzntech 🎉
+- **concurrency**: Resolve Swift 6 strict concurrency errors (#280) - thanks @hoducha 🎉
+- **build**: Resolve Swift compiler warnings
+
 ## [0.8.0] - 2026-02-04
 
 ### Added

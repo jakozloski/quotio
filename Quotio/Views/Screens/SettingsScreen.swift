@@ -8,7 +8,7 @@ import AppKit
 
 struct SettingsScreen: View {
     @Environment(QuotaViewModel.self) private var viewModel
-    private let modeManager = OperatingModeManager.shared
+    @State private var modeManager = OperatingModeManager.shared
     private let launchManager = LaunchAtLoginManager.shared
     
     var body: some View {
@@ -100,6 +100,9 @@ struct SettingsScreen: View {
         }
         .formStyle(.grouped)
         .navigationTitle("nav.settings".localized())
+        .onAppear {
+            NSLog("[SettingsScreen] View appeared - mode: \(modeManager.currentMode.rawValue), proxy running: \(viewModel.proxyManager.proxyStatus.running)")
+        }
     }
 }
 
@@ -107,7 +110,7 @@ struct SettingsScreen: View {
 
 struct OperatingModeSection: View {
     @Environment(QuotaViewModel.self) private var viewModel
-    private let modeManager = OperatingModeManager.shared
+    @State private var modeManager = OperatingModeManager.shared
     @State private var showModeChangeConfirmation = false
     @State private var pendingMode: OperatingMode?
     @State private var showRemoteConfigSheet = false
@@ -208,9 +211,8 @@ struct RemoteServerSection: View {
     @Environment(QuotaViewModel.self) private var viewModel
     @State private var showRemoteConfigSheet = false
     @State private var isReconnecting = false
-    
-    private var modeManager: OperatingModeManager { OperatingModeManager.shared }
-    
+    @State private var modeManager = OperatingModeManager.shared
+
     var body: some View {
         Section {
             // Remote configuration row
@@ -704,6 +706,7 @@ struct LocalProxyServerSection: View {
     @AppStorage("autoStartTunnel") private var autoStartTunnel = false
     @AppStorage("allowNetworkAccess") private var allowNetworkAccess = false
     @State private var portText: String = ""
+    @State private var isLoadingConfig = false  // Prevents onChange from firing during initial load
     
     var body: some View {
         Section {
@@ -714,6 +717,7 @@ struct LocalProxyServerSection: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 100)
                     .onChange(of: portText) { _, newValue in
+                        guard !isLoadingConfig else { return }
                         if let port = UInt16(newValue), port > 0 {
                             viewModel.proxyManager.port = port
                         }
@@ -744,6 +748,7 @@ struct LocalProxyServerSection: View {
                 
             NetworkAccessSection(allowNetworkAccess: $allowNetworkAccess)
                 .onChange(of: allowNetworkAccess) { _, newValue in
+                    guard !isLoadingConfig else { return }
                     viewModel.proxyManager.allowNetworkAccess = newValue
                 }
                 
@@ -755,7 +760,12 @@ struct LocalProxyServerSection: View {
                 .font(.caption)
         }
         .onAppear {
+            isLoadingConfig = true
             portText = String(viewModel.proxyManager.port)
+            // Delay clearing the flag to allow onChange to be suppressed
+            DispatchQueue.main.async {
+                isLoadingConfig = false
+            }
         }
     }
 }
@@ -1660,8 +1670,6 @@ struct MenuBarSettingsSection: View {
     @Environment(QuotaViewModel.self) private var viewModel
     private let settings = MenuBarSettingsManager.shared
     @AppStorage("showInDock") private var showInDock = true
-    @State private var showTruncationAlert = false
-    @State private var pendingMaxItems: Int?
     
     private var showMenuBarIconBinding: Binding<Bool> {
         Binding(
@@ -1713,24 +1721,6 @@ struct MenuBarSettingsSection: View {
         )
     }
     
-    private var maxItemsBinding: Binding<Int> {
-        Binding(
-            get: { settings.menuBarMaxItems },
-            set: { newValue in
-                let clamped = min(max(newValue, MenuBarSettingsManager.minMenuBarItems), MenuBarSettingsManager.maxMenuBarItems)
-
-                // Check if reducing max items would truncate current selection
-                if clamped < settings.menuBarMaxItems && settings.selectedItems.count > clamped {
-                    pendingMaxItems = clamped
-                    showTruncationAlert = true
-                } else {
-                    settings.menuBarMaxItems = clamped
-                    viewModel.syncMenuBarSelection()
-                }
-            }
-        )
-    }
-    
     var body: some View {
         Section {
             Toggle("settings.showInDock".localized(), isOn: showInDockBinding)
@@ -1741,21 +1731,6 @@ struct MenuBarSettingsSection: View {
                 Toggle("settings.menubar.showQuota".localized(), isOn: showQuotaBinding)
                 
                 if settings.showQuotaInMenuBar {
-                    HStack {
-                        Text("settings.menubar.maxItems".localized())
-                        Spacer()
-                        Text("\(settings.menuBarMaxItems)")
-                            .monospacedDigit()
-                            .foregroundStyle(.primary)
-                        Stepper(
-                            "",
-                            value: maxItemsBinding,
-                            in: MenuBarSettingsManager.minMenuBarItems...MenuBarSettingsManager.maxMenuBarItems,
-                            step: 1
-                        )
-                        .labelsHidden()
-                    }
-                    
                     Picker("settings.menubar.colorMode".localized(), selection: colorModeBinding) {
                         Text("settings.menubar.colored".localized()).tag(MenuBarColorMode.colored)
                         Text("settings.menubar.monochrome".localized()).tag(MenuBarColorMode.monochrome)
@@ -1765,32 +1740,6 @@ struct MenuBarSettingsSection: View {
             }
         } header: {
             Label("settings.menubar".localized(), systemImage: "menubar.rectangle")
-        } footer: {
-            Text(String(
-                format: "settings.menubar.help".localized(),
-                settings.menuBarMaxItems
-            ))
-            .font(.caption)
-        }
-        .alert("menubar.truncation.title".localized(), isPresented: $showTruncationAlert) {
-            Button("action.cancel".localized(), role: .cancel) {
-                pendingMaxItems = nil
-            }
-            Button("action.ok".localized(), role: .destructive) {
-                if let newMax = pendingMaxItems {
-                    settings.menuBarMaxItems = newMax
-                    viewModel.syncMenuBarSelection()
-                    pendingMaxItems = nil
-                }
-            }
-        } message: {
-            if let newMax = pendingMaxItems {
-                Text(String(
-                    format: "menubar.truncation.message".localized(),
-                    settings.selectedItems.count,
-                    newMax
-                ))
-            }
         }
     }
 }
