@@ -142,8 +142,6 @@ struct AccountRow: View {
     var isActiveInIDE: Bool = false
     
     @State private var settings = MenuBarSettingsManager.shared
-    @State private var showWarning = false
-    @State private var showMaxItemsAlert = false
     @State private var showDeleteConfirmation = false
     
     private var isMenuBarSelected: Bool {
@@ -353,34 +351,10 @@ struct AccountRow: View {
         } message: {
             Text("providers.deleteMessage".localized())
         }
-        .alert("menubar.warning.title".localized(), isPresented: $showWarning) {
-            Button("menubar.warning.confirm".localized()) {
-                settings.toggleItem(account.menuBarItem)
-            }
-            Button("menubar.warning.cancel".localized(), role: .cancel) {}
-        } message: {
-            Text("menubar.warning.message".localized())
-        }
-        .alert("menubar.maxItems.title".localized(), isPresented: $showMaxItemsAlert) {
-            Button("action.ok".localized(), role: .cancel) {}
-        } message: {
-            Text(String(
-                format: "menubar.maxItems.message".localized(),
-                settings.menuBarMaxItems
-            ))
-        }
     }
     
     private func handleMenuBarToggle() {
-        if isMenuBarSelected {
-            settings.toggleItem(account.menuBarItem)
-        } else if settings.isAtMaxItems {
-            showMaxItemsAlert = true
-        } else if settings.shouldWarnOnAdd {
-            showWarning = true
-        } else {
-            settings.toggleItem(account.menuBarItem)
-        }
+        settings.toggleItem(account.menuBarItem)
     }
 }
 

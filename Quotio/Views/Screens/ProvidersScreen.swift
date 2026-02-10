@@ -109,11 +109,13 @@ struct ProvidersScreen: View {
         return groups
     }
     
-    /// Sorted providers for consistent display order
-    private var sortedProviders: [AIProvider] {
-        groupedAccounts.keys.sorted { $0.displayName < $1.displayName }
+    /// All accounts in a flat list, sorted by provider name then display name
+    private var allAccounts: [AccountRowData] {
+        groupedAccounts
+            .sorted { $0.key.displayName < $1.key.displayName }
+            .flatMap { $0.value.sorted { $0.displayName < $1.displayName } }
     }
-    
+
     /// Total account count across all providers
     private var totalAccountCount: Int {
         groupedAccounts.values.reduce(0) { $0 + $1.count }
@@ -278,30 +280,25 @@ struct ProvidersScreen: View {
                     }
                 )
             } else {
-                // Grouped accounts by provider
-                ForEach(sortedProviders, id: \.self) { provider in
-                    ProviderDisclosureGroup(
-                        provider: provider,
-                        accounts: groupedAccounts[provider] ?? [],
-                        onDeleteAccount: { account in
-                            Task { await deleteAccount(account) }
-                        },
-                        onEditAccount: { account in
-                            if provider == .glm {
+                // Flat list of all accounts
+                ForEach(allAccounts) { account in
+                    AccountRow(
+                        account: account,
+                        onDelete: { Task { await deleteAccount(account) } },
+                        onEdit: (account.provider == .glm || account.provider == .warp) ? {
+                            if account.provider == .glm {
                                 handleEditGlmAccount(account)
-                            } else if provider == .warp {
+                            } else if account.provider == .warp {
                                 handleEditWarpAccount(account)
                             }
-                        },
-                        onSwitchAccount: provider == .antigravity ? { account in
+                        } : nil,
+                        onSwitch: account.provider == .antigravity ? {
                             switchingAccount = account
                         } : nil,
-                        onToggleDisabled: { account in
-                            Task { await toggleAccountDisabled(account) }
-                        },
-                        isAccountActive: provider == .antigravity ? { account in
-                            viewModel.isAntigravityAccountActive(email: account.displayName)
-                        } : nil
+                        onToggleDisabled: { Task { await toggleAccountDisabled(account) } },
+                        isActiveInIDE: account.provider == .antigravity
+                            ? viewModel.isAntigravityAccountActive(email: account.displayName)
+                            : false
                     )
                 }
             }

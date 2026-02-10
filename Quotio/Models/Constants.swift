@@ -21,8 +21,4 @@ enum AppConstants {
     /// Default proxy port
     static let defaultProxyPort: UInt16 = 17080
     
-    // MARK: - UI
-    
-    /// Maximum number of items to display in menu bar
-    static let maxMenuBarItems = 3
 }
