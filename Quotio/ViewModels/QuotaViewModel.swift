@@ -92,6 +92,7 @@ final class QuotaViewModel {
     
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var warmupTask: Task<Void, Never>?
+    @ObservationIgnored private var isStartingProxyFlow = false
     @ObservationIgnored private var lastLogTimestamp: Int?
     @ObservationIgnored private var isWarmupRunning = false
     @ObservationIgnored private var warmupRunningAccounts: Set<WarmupAccountKey> = []
@@ -964,6 +965,13 @@ final class QuotaViewModel {
     var readyAccounts: Int { authFiles.filter { $0.isReady }.count }
     
     func startProxy() async {
+        guard !isStartingProxyFlow else { return }
+        isStartingProxyFlow = true
+
+        defer {
+            isStartingProxyFlow = false
+        }
+
         do {
             // Wire up ProxyBridge callback to RequestTracker before starting
             proxyManager.proxyBridge.onRequestCompleted = { [weak self] metadata in
@@ -1265,11 +1273,9 @@ final class QuotaViewModel {
     /// Switch Antigravity account in the IDE
     func switchAntigravityAccount(email: String) async {
         await antigravitySwitcher.executeSwitchForEmail(email)
-        
+
         // Refresh to update active account
         if case .success = antigravitySwitcher.switchState {
-            // Refresh quotas but don't re-detect active account
-            // (already set in executeSwitchForEmail)
             await refreshAntigravityQuotasWithoutDetect()
         }
     }
