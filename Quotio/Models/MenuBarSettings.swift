@@ -565,9 +565,6 @@ final class MenuBarSettingsManager {
     }
     
     func autoSelectNewAccounts(availableItems: [MenuBarQuotaItem]) {
-        // Don't auto-add if user has manually modified the menu bar selection
-        guard !hasUserModifiedMenuBar else { return }
-
         let existingIds = Set(selectedItems.map(\.id))
         let newItems = availableItems.filter { !existingIds.contains($0.id) }
         selectedItems.append(contentsOf: newItems)
