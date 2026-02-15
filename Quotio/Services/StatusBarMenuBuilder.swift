@@ -116,6 +116,9 @@ final class StatusBarMenuBuilder {
         // Filter out CLI-based providers if CLI is not installed,
         // unless we already have data for them (proxy auth files, direct auth files, or quota data)
         return providers.filter { provider in
+            if let quotas = viewModel.providerQuotas[provider], !quotas.isEmpty {
+                return true
+            }
             guard let agent = provider.cliAgent else { return true }
             let hasProxyAuthFiles = viewModel.authFiles.contains { $0.providerType == provider }
             let hasDirectFiles = viewModel.directAuthFiles.contains { $0.provider == provider }
