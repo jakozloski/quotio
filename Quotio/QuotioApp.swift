@@ -334,18 +334,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // When user clicks dock icon or menubar "Open Quotio" and no visible windows
         if !flag {
-            // Find and show the main window
-            for window in sender.windows {
-                if window.title == "Quotio" {
-                    // Restore minimized window first
-                    if window.isMiniaturized {
-                        window.deminiaturize(nil)
-                    }
-                    window.makeKeyAndOrderFront(nil)
-                    return true
+            NSApp.activate(ignoringOtherApps: true)
+
+            if let window = sender.windows.first(where: { $0.title == "Quotio" }) {
+                if window.isMiniaturized {
+                    window.deminiaturize(nil)
                 }
+                window.makeKeyAndOrderFront(nil)
+                window.orderFrontRegardless()
             }
         }
         return true
