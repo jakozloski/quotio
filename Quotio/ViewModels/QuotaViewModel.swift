@@ -50,6 +50,7 @@ final class QuotaViewModel {
     
     var currentPage: NavigationPage = .dashboard
     var authFiles: [AuthFile] = []
+    var routingStrategy: String = "round-robin"
     var usageStats: UsageStats?
     var apiKeys: [String] = []
     var isLoading = false
@@ -83,6 +84,10 @@ final class QuotaViewModel {
     
     /// Quota data per provider per account (email -> QuotaData)
     var providerQuotas: [AIProvider: [String: ProviderQuotaData]] = [:]
+
+    /// Previous quota snapshot for detecting active accounts.
+    /// Accounts whose quota decreased between refreshes are actively being used.
+    var previousProviderQuotas: [AIProvider: [String: ProviderQuotaData]] = [:]
     
     /// Subscription info per provider per account (provider -> email -> SubscriptionInfo)
     var subscriptionInfos: [AIProvider: [String: SubscriptionInfo]] = [:]
@@ -347,7 +352,10 @@ final class QuotaViewModel {
         
         isLoadingQuotas = true
         lastQuotaRefreshTime = Date()
-        
+
+        // Snapshot current quotas before refresh so we can detect usage deltas
+        previousProviderQuotas = providerQuotas
+
         // Fetch from available fetchers in parallel
         // Note: Cursor and Trae removed from auto-refresh to address privacy concerns (issue #29)
         // User must explicitly scan for IDEs to detect Cursor/Trae quotas
@@ -1121,6 +1129,7 @@ final class QuotaViewModel {
             }
 
             self.authFiles = newAuthFiles
+            self.routingStrategy = (try? await client.getRoutingStrategy()) ?? "round-robin"
 
             self.usageStats = try await client.fetchUsageStats()
             self.apiKeys = try await client.fetchAPIKeys()
@@ -1169,6 +1178,9 @@ final class QuotaViewModel {
         isLoadingQuotas = true
         lastQuotaRefresh = Date()
 
+        // Snapshot current quotas before refresh so we can detect usage deltas
+        previousProviderQuotas = providerQuotas
+
         // In remote mode, skip local filesystem fetchers — only show data from the remote proxy
         // (auth files, usage stats, API keys are already fetched by refreshData())
         if !modeManager.isRemoteProxyMode {
@@ -1205,6 +1217,9 @@ final class QuotaViewModel {
         isLoadingQuotas = true
         lastQuotaRefreshTime = Date()
         lastQuotaRefresh = Date()
+
+        // Snapshot current quotas before refresh so we can detect usage deltas
+        previousProviderQuotas = providerQuotas
 
         // Refresh direct fetchers (these don't need proxy)
         // Note: Cursor and Trae removed - require explicit scan (issue #29)

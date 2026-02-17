@@ -21,6 +21,8 @@ struct DirectAuthFile: Identifiable, Sendable, Hashable {
     let filePath: String
     let source: AuthFileSource
     let filename: String
+    let disabled: Bool
+    let lastRefresh: Date?
     
     /// Source location of the auth file
     enum AuthFileSource: String, Sendable {
@@ -124,7 +126,9 @@ actor DirectAuthFileService {
                 accountType: nil,
                 filePath: filePath,
                 source: .cliProxyApi,
-                filename: file
+                filename: file,
+                disabled: false,
+                lastRefresh: nil
             ))
         }
         
@@ -165,7 +169,17 @@ actor DirectAuthFileService {
         } else if let expiredInt = json["expired"] as? Double { // Handle numeric timestamp
             expiredDate = Date(timeIntervalSince1970: expiredInt)
         }
-        
+
+        // Parse disabled flag and last_refresh timestamp
+        let disabled = json["disabled"] as? Bool ?? false
+
+        var lastRefreshDate: Date?
+        if let lastRefreshString = json["last_refresh"] as? String {
+            lastRefreshDate = parseISO8601Date(lastRefreshString)
+        } else if let lastRefreshNum = json["last_refresh"] as? Double {
+            lastRefreshDate = Date(timeIntervalSince1970: lastRefreshNum)
+        }
+
         return DirectAuthFile(
             id: filePath,
             provider: provider,
@@ -175,7 +189,9 @@ actor DirectAuthFileService {
             accountType: accountType,
             filePath: filePath,
             source: .cliProxyApi,
-            filename: filename
+            filename: filename,
+            disabled: disabled,
+            lastRefresh: lastRefreshDate
         )
     }
     

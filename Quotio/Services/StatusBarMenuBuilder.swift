@@ -64,11 +64,13 @@ final class StatusBarMenuBuilder {
                 if accounts.isEmpty {
                     menu.addItem(buildEmptyStateItem())
                 } else {
+                    let activeEmails = activeAccountEmails(for: provider)
                     for account in accounts {
                         let cardItem = buildAccountCardItem(
                             email: account.email,
                             data: account.data,
-                            provider: provider
+                            provider: provider,
+                            isActiveAccount: activeEmails.contains(account.email)
                         )
                         menu.addItem(cardItem)
                     }
@@ -111,10 +113,14 @@ final class StatusBarMenuBuilder {
             }
         }
         
-        // Filter out CLI-based providers if CLI is not installed
+        // Filter out CLI-based providers if CLI is not installed,
+        // unless we already have data for them (proxy auth files, direct auth files, or quota data)
         return providers.filter { provider in
             guard let agent = provider.cliAgent else { return true }
-            return isCLIInstalled(agent)
+            let hasProxyAuthFiles = viewModel.authFiles.contains { $0.providerType == provider }
+            let hasDirectFiles = viewModel.directAuthFiles.contains { $0.provider == provider }
+            let hasQuotaData = viewModel.providerQuotas[provider]?.isEmpty == false
+            return hasProxyAuthFiles || hasDirectFiles || hasQuotaData || isCLIInstalled(agent)
         }.sorted { $0.displayName < $1.displayName }
     }
     
@@ -185,8 +191,160 @@ final class StatusBarMenuBuilder {
         return quotas.map { ($0.key, $0.value) }.sorted { $0.email < $1.email }
     }
 
+    /// Find the AuthFile for an account card to show proxy routing status.
+    /// When multiple auth files match the same key, prefers ready > non-disabled > most recent.
+    private func authFileForAccount(email: String, provider: AIProvider) -> AuthFile? {
+        // No proxy auth files in monitor/quota-only mode
+        guard !modeManager.isMonitorMode else { return nil }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedEmail.isEmpty else { return nil }
+
+        // Collect all candidates by quotaLookupKey, then fall back to email field
+        let byKey = viewModel.authFiles.filter {
+            $0.providerType == provider &&
+            $0.quotaLookupKey.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedEmail
+        }
+        let candidates = byKey.isEmpty
+            ? viewModel.authFiles.filter {
+                $0.providerType == provider &&
+                ($0.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedEmail
+            }
+            : byKey
+
+        guard !candidates.isEmpty else { return nil }
+        if candidates.count == 1 { return candidates[0] }
+
+        // Deterministic tiebreak: ready > non-disabled > most recently updated
+        return candidates.sorted { a, b in
+            if a.isReady != b.isReady { return a.isReady }
+            if a.disabled != b.disabled { return !a.disabled }
+            return (a.updatedAt ?? "") > (b.updatedAt ?? "")
+        }.first
+    }
+
+    /// Determine which account emails are "active" for a provider.
+    /// In proxy mode, uses routing-aware logic to pick the current account.
+    /// In monitor mode, all enabled (non-disabled) accounts are considered active.
+    private func activeAccountEmails(for provider: AIProvider) -> Set<String> {
+        // When proxy auth files are available, use routing-aware logic (single active)
+        let readyFiles = viewModel.authFiles.filter {
+            $0.providerType == provider && $0.isReady
+        }
+
+        if !readyFiles.isEmpty {
+            if readyFiles.count == 1 { return [readyFiles[0].quotaLookupKey] }
+
+            let strategy = viewModel.routingStrategy
+            if strategy == "fill-first" {
+                if let key = readyFiles.first?.quotaLookupKey { return [key] }
+            }
+
+            // Round-robin: infer from quota — lowest remaining = most recently drained
+            if let email = lowestQuotaEmail(for: provider, candidates: readyFiles.map(\.quotaLookupKey)) {
+                return [email]
+            }
+            if let key = readyFiles.first?.quotaLookupKey { return [key] }
+        }
+
+        // No proxy auth files — show all enabled accounts as active.
+        return activeEmailsFromDirectFiles(for: provider)
+    }
+
+    /// Find the account email most likely to be the active one based on quota levels.
+    /// An account at 0% is depleted and no longer in use (the proxy rotates away).
+    /// Among accounts with remaining quota, the lowest is most recently/heavily used.
+    private func lowestQuotaEmail(for provider: AIProvider, candidates: [String]? = nil) -> String? {
+        guard let quotas = viewModel.providerQuotas[provider], !quotas.isEmpty else { return nil }
+
+        let entries: [String: ProviderQuotaData]
+        if let candidates = candidates {
+            entries = quotas.filter { candidates.contains($0.key) }
+        } else {
+            entries = quotas
+        }
+        guard !entries.isEmpty else { return nil }
+        if entries.count == 1 { return entries.keys.first }
+
+        // First pass: find the lowest non-zero minimum percentage.
+        // Accounts at 0% are depleted and would have been rotated out.
+        var bestEmail: String?
+        var lowestPercent = Double.infinity
+        for (email, data) in entries {
+            let minPercent = data.models.map(\.percentage).min() ?? 100
+            if minPercent > 0 && minPercent < lowestPercent {
+                lowestPercent = minPercent
+                bestEmail = email
+            }
+        }
+        if let email = bestEmail { return email }
+
+        // Fallback: all accounts are depleted (0%). Pick the one with the
+        // highest average percentage (most recently reset / closest to usable).
+        var fallbackEmail: String?
+        var highestAvg = -1.0
+        for (email, data) in entries {
+            let avg = data.models.isEmpty ? 0 : data.models.map(\.percentage).reduce(0, +) / Double(data.models.count)
+            if avg > highestAvg {
+                highestAvg = avg
+                fallbackEmail = email
+            }
+        }
+        return fallbackEmail
+    }
+
+    /// Detect active accounts by comparing current vs previous quota snapshots.
+    /// An account is "active" if any model's quota percentage decreased since
+    /// the last refresh — meaning something consumed quota on that account.
+    /// Falls back to all enabled (non-disabled) accounts when no previous data exists.
+    private func activeEmailsFromDirectFiles(for provider: AIProvider) -> Set<String> {
+        let directFiles = viewModel.directAuthFiles.filter { $0.provider == provider }
+        let enabled = directFiles.filter { !$0.disabled }
+
+        // Try delta-based detection: compare current vs previous quotas
+        if let currentQuotas = viewModel.providerQuotas[provider],
+           let previousQuotas = viewModel.previousProviderQuotas[provider],
+           !previousQuotas.isEmpty {
+            var activeKeys = Set<String>()
+            for (email, currentData) in currentQuotas {
+                guard let previousData = previousQuotas[email] else { continue }
+                // Check if any model's percentage decreased (usage went up)
+                for currentModel in currentData.models {
+                    if let previousModel = previousData.models.first(where: { $0.name == currentModel.name }),
+                       currentModel.percentage < previousModel.percentage {
+                        activeKeys.insert(email)
+                        break
+                    }
+                }
+            }
+            // Filter out disabled accounts from delta results
+            if !activeKeys.isEmpty && !enabled.isEmpty {
+                let disabledKeys = Set(directFiles.filter(\.disabled).map(\.menuBarAccountKey))
+                activeKeys.subtract(disabledKeys)
+            }
+            if !activeKeys.isEmpty { return activeKeys }
+        }
+
+        // No previous data (first refresh) or no usage detected —
+        // fall back to all enabled (non-disabled) accounts.
+        guard !directFiles.isEmpty else { return [] }
+        guard !enabled.isEmpty else { return [] }
+
+        let quotaKeys = Set(viewModel.providerQuotas[provider]?.keys ?? Dictionary<String, ProviderQuotaData>().keys)
+        let validKeys: [String] = enabled.compactMap { file in
+            let key = file.menuBarAccountKey
+            if quotaKeys.contains(key) { return key }
+            if let match = quotaKeys.first(where: { $0.caseInsensitiveCompare(key) == .orderedSame }) {
+                return match
+            }
+            return nil
+        }
+
+        return Set(validKeys.isEmpty ? enabled.map(\.menuBarAccountKey) : validKeys)
+    }
+
     // MARK: - Header Item
-    
+
     private func buildHeaderItem() -> NSMenuItem {
         let headerView = MenuHeaderView(isLoading: viewModel.isLoadingQuotas)
         return viewItem(for: headerView)
@@ -224,10 +382,12 @@ final class StatusBarMenuBuilder {
     private func buildAccountCardItem(
         email: String,
         data: ProviderQuotaData,
-        provider: AIProvider
+        provider: AIProvider,
+        isActiveAccount: Bool = false
     ) -> NSMenuItem {
         let subscriptionInfo = viewModel.subscriptionInfos[provider]?[email]
         let isActiveInIDE = provider == .antigravity && viewModel.isAntigravityAccountActive(email: email)
+        let authFile = authFileForAccount(email: email, provider: provider)
 
         let cardView = MenuAccountCardView(
             email: email,
@@ -235,6 +395,8 @@ final class StatusBarMenuBuilder {
             provider: provider,
             subscriptionInfo: subscriptionInfo,
             isActiveInIDE: isActiveInIDE,
+            authFile: authFile,
+            isActiveAccount: isActiveAccount,
             onUseAccount: provider == .antigravity && !isActiveInIDE ? { [weak viewModel] in
                 Self.showSwitchConfirmation(email: email, viewModel: viewModel)
             } : nil
@@ -662,9 +824,38 @@ private struct MenuAccountCardView: View {
     let provider: AIProvider
     let subscriptionInfo: SubscriptionInfo?
     let isActiveInIDE: Bool
+    let authFile: AuthFile?
+    let isActiveAccount: Bool
     let onUseAccount: (() -> Void)?
-    
+
     private var settings: MenuBarSettingsManager { MenuBarSettingsManager.shared }
+
+    /// Color for the proxy routing status dot (nil = no dot shown)
+    private var statusDotColor: Color? {
+        guard let af = authFile else { return nil }
+        // Suppress dot for Antigravity when it has its own "Active in IDE" badge
+        if isActiveInIDE { return nil }
+        if af.disabled { return .gray }
+        if af.unavailable { return .gray }
+        switch af.status {
+        case "ready": return .green
+        case "cooling": return .orange
+        case "error": return .red
+        default: return .gray
+        }
+    }
+
+    private var statusTooltip: String {
+        guard let af = authFile else { return "" }
+        if af.disabled { return "account.status.disabled".localized() }
+        if af.unavailable { return "account.status.unavailable".localized() }
+        switch af.status {
+        case "ready": return "account.status.inRotation".localized()
+        case "cooling": return "account.status.cooling".localized()
+        case "error": return af.humanReadableStatus ?? "account.status.error".localized()
+        default: return af.status.capitalized
+        }
+    }
     @State private var isHovered = false
     @State private var isUseHovered = false
     @State private var isUsingAccount = false
@@ -793,11 +984,21 @@ private struct MenuAccountCardView: View {
             ProviderIconMono(provider: provider, size: 16)
                 .foregroundStyle(.secondary)
                 .opacity(0.8)
-            
+
+            // Status Dot (proxy routing status)
+            if let dotColor = statusDotColor {
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 6, height: 6)
+                    .frame(width: 16, height: 16)
+                    .help(statusTooltip)
+            }
+
             // Email
             Text(displayEmail)
                 .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
+                .foregroundStyle(authFile?.disabled == true ? .secondary : .primary)
+                .strikethrough(authFile?.disabled == true)
                 .lineLimit(1)
             
             Spacer()
@@ -813,7 +1014,22 @@ private struct MenuAccountCardView: View {
                     .clipShape(Capsule())
             }
             
-            // Active/Use Badge
+            // Active Account Badge (proxy routing)
+            if isActiveAccount && !isActiveInIDE {
+                Text("account.status.active".localized())
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.cyan)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.cyan.opacity(0.12))
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.cyan.opacity(0.25), lineWidth: 1)
+                    )
+                    .clipShape(Capsule())
+            }
+
+            // Antigravity Active/Use Badge
             if isActiveInIDE {
                 Text("antigravity.active".localized())
                     .font(.system(size: 10, weight: .medium, design: .rounded))
