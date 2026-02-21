@@ -23,6 +23,7 @@ final class AppBootstrap {
 
     private(set) var hasInitialized = false
     private(set) var needsOnboarding = false
+    private var initializationTask: Task<Void, Never>?
 
     private let modeManager = OperatingModeManager.shared
     private let appearanceManager = AppearanceManager.shared
@@ -75,12 +76,16 @@ final class AppBootstrap {
             }
         }
 
-        // Load data in background (includes proxy auto-start if enabled)
-        await viewModel.initialize()
+        // Fire heavy init (network requests, proxy auto-start) in a non-blocking task
+        // so bootstrap completes immediately and the app remains responsive at launch
+        guard initializationTask == nil else { return }
+        initializationTask = Task { @MainActor [weak self] in
+            await self?.viewModel.initialize()
 
-        #if canImport(Sparkle)
-        UpdaterService.shared.checkForUpdatesInBackground()
-        #endif
+            #if canImport(Sparkle)
+            UpdaterService.shared.checkForUpdatesInBackground()
+            #endif
+        }
     }
 
     func updateStatusBar() {
