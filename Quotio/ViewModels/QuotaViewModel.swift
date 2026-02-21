@@ -1369,10 +1369,7 @@ final class QuotaViewModel {
                 return
             }
             
-            if let url = URL(string: urlString) {
-                NSWorkspace.shared.open(url)
-            }
-            
+            // Don't auto-open browser - user clicks "Open Link" button instead
             oauthState = OAuthState(provider: provider, status: .polling, state: state)
             await pollOAuthStatus(state: state, provider: provider)
             
