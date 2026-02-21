@@ -412,10 +412,16 @@ actor AgentConfigurationService {
         return section.isEmpty ? nil : section
     }
 
-    private func isCodexManagedTopLevelKey(_ line: String) -> Bool {
+    private func isCodexManagedTopLevelKey(_ line: String, onlyCliproxy: Bool = false) -> Bool {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         guard let equalIndex = trimmed.firstIndex(of: "=") else { return false }
         let key = String(trimmed[..<equalIndex]).trimmingCharacters(in: .whitespaces)
+        if onlyCliproxy {
+            // Only strip model_provider when its value is "cliproxyapi"
+            guard key == "model_provider" else { return false }
+            let value = String(trimmed[trimmed.index(after: equalIndex)...]).trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            return value == "cliproxyapi"
+        }
         return key == "model_provider" || key == "model" || key == "model_reasoning_effort"
     }
 
@@ -438,7 +444,7 @@ actor AgentConfigurationService {
         return nil
     }
 
-    private func filterExistingCodexLines(existingContent: String, managedBanner: String?) -> [String] {
+    private func filterExistingCodexLines(existingContent: String, managedBanner: String?, onlyCliproxy: Bool = false) -> [String] {
         let lines = existingContent.components(separatedBy: .newlines)
         var filteredLines: [String] = []
         var skippingCliproxySection = false
@@ -465,7 +471,7 @@ actor AgentConfigurationService {
                 continue
             }
 
-            if !hasSeenAnySection && isCodexManagedTopLevelKey(trimmed) {
+            if !hasSeenAnySection && isCodexManagedTopLevelKey(trimmed, onlyCliproxy: onlyCliproxy) {
                 continue
             }
 
@@ -713,7 +719,7 @@ actor AgentConfigurationService {
                 // including managed banner removal.
                 let stubManagedConfig = buildManagedCodexTOML(model: "", proxyURL: "")
                 let managedBanner = extractManagedCodexBanner(from: stubManagedConfig)
-                let filteredLines = filterExistingCodexLines(existingContent: content, managedBanner: managedBanner)
+                let filteredLines = filterExistingCodexLines(existingContent: content, managedBanner: managedBanner, onlyCliproxy: true)
                 let newContent = filteredLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
                 try newContent.write(toFile: configPath, atomically: true, encoding: .utf8)
                 

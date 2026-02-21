@@ -787,7 +787,7 @@ struct OAuthSheet: View {
             }
             
             if let state = viewModel.oauthState, state.provider == provider {
-                OAuthStatusView(status: state.status, error: state.error, state: state.state, provider: provider)
+                OAuthStatusView(status: state.status, error: state.error, state: state.state, url: state.url, provider: provider)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
             
@@ -848,6 +848,7 @@ private struct OAuthStatusView: View {
     let status: OAuthState.OAuthStatus
     let error: String?
     let state: String?
+    let url: String?
     let provider: AIProvider
     
     /// Stable rotation angle for spinner animation (fixes UUID() infinite re-render)
@@ -930,7 +931,16 @@ private struct OAuthStatusView: View {
                         Text("oauth.waitingForAuth".localized())
                             .font(.subheadline)
                             .fontWeight(.medium)
-                        
+
+                        if let urlString = url, let authURL = URL(string: urlString) {
+                            Button {
+                                NSWorkspace.shared.open(authURL)
+                            } label: {
+                                Label("Open Link", systemImage: "arrow.up.forward.app")
+                            }
+                            .buttonStyle(.subtle)
+                        }
+
                         Text("oauth.completeBrowser".localized())
                             .font(.caption)
                             .foregroundStyle(.secondary)
