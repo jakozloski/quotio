@@ -6,6 +6,7 @@
 import Foundation
 import SwiftUI
 import AppKit
+import Network
 import Observation
 
 @MainActor
@@ -343,10 +344,19 @@ final class QuotaViewModel {
     /// Note: Cursor and Trae are NOT auto-refreshed - user must use "Scan for IDEs" (issue #29)
     func refreshQuotasDirectly() async {
         guard !isLoadingQuotas else { return }
-        
+
         isLoadingQuotas = true
+        defer {
+            isLoadingQuotas = false
+            autoSelectMenuBarItems()
+            notifyQuotaDataChanged()
+        }
+
+        // Wait for network before firing HTTP requests (avoids 15s timeouts after restart)
+        guard await waitForNetwork(timeout: 10) else { return }
+
         lastQuotaRefreshTime = Date()
-        
+
         // Fetch from available fetchers in parallel
         // Note: Cursor and Trae removed from auto-refresh to address privacy concerns (issue #29)
         // User must explicitly scan for IDEs to detect Cursor/Trae quotas
@@ -361,12 +371,8 @@ final class QuotaViewModel {
         async let kiro: () = refreshKiroQuotasInternal()
 
         _ = await (antigravity, openai, copilot, claudeCode, codexCLI, geminiCLI, glm, warp, kiro)
-        
-        checkQuotaNotifications()
-        autoSelectMenuBarItems()
 
-        isLoadingQuotas = false
-        notifyQuotaDataChanged()
+        checkQuotaNotifications()
     }
 
     private func autoSelectMenuBarItems() {
@@ -1193,6 +1199,15 @@ final class QuotaViewModel {
         guard !modeManager.isRemoteProxyMode else { return }
 
         isLoadingQuotas = true
+        defer {
+            isLoadingQuotas = false
+            autoSelectMenuBarItems()
+            notifyQuotaDataChanged()
+        }
+
+        // Wait for network before firing HTTP requests (avoids 15s timeouts after restart)
+        guard await waitForNetwork(timeout: 10) else { return }
+
         lastQuotaRefreshTime = Date()
         lastQuotaRefresh = Date()
 
@@ -1216,10 +1231,46 @@ final class QuotaViewModel {
         }
 
         checkQuotaNotifications()
-        autoSelectMenuBarItems()
+    }
 
-        isLoadingQuotas = false
-        notifyQuotaDataChanged()
+    /// Wait for network connectivity with a bounded timeout.
+    /// Returns true if network became available, false if timed out or task already cancelled.
+    /// Both the path handler and timeout run on the same serial queue, preventing races.
+    private nonisolated func waitForNetwork(timeout: TimeInterval) async -> Bool {
+        // Short-circuit if task is already cancelled
+        if Task.isCancelled { return false }
+
+        /// One-shot continuation guard. All callbacks run on the same serial queue,
+        /// so `done` is never accessed concurrently.
+        final class ResumeOnce: @unchecked Sendable {
+            private var done = false
+            func tryResume(_ continuation: CheckedContinuation<Bool, Never>,
+                           returning value: Bool,
+                           monitor: NWPathMonitor) {
+                guard !done else { return }
+                done = true
+                monitor.cancel()
+                continuation.resume(returning: value)
+            }
+        }
+
+        return await withCheckedContinuation { continuation in
+            let once = ResumeOnce()
+            let monitor = NWPathMonitor()
+            let queue = DispatchQueue(label: "quotio.network-check")
+
+            monitor.pathUpdateHandler = { path in
+                if path.status == .satisfied {
+                    once.tryResume(continuation, returning: true, monitor: monitor)
+                }
+            }
+
+            monitor.start(queue: queue)
+
+            queue.asyncAfter(deadline: .now() + timeout) {
+                once.tryResume(continuation, returning: false, monitor: monitor)
+            }
+        }
     }
 
     private func refreshAntigravityQuotasInternal() async {
